@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  java-persistence:
+    image: postgres:latest
+    container_name: java-persistence
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_MULTIPLE_DATABASES: many_to_one,one_to_one
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh
+
+volumes:
+  postgres-data:
