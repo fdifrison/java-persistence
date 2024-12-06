@@ -1,0 +1,39 @@
+databaseChangeLog:
+  - context: many_to_one
+  - changeSet:
+      id: 0
+      author: giovanni frison
+      changes:
+        - createTable:
+            tableName: post
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: title
+                  type: text
+                  constraints:
+                    nullable: false
+        - createTable:
+            tableName: post_comment
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: comment
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: post_id
+                  type: bigint
+                  constraints:
+                    foreignKeyName: post_comment_post_id
+                    referencedTableName: post
+                    referencedColumnNames: id
