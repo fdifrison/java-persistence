@@ -1,4 +1,4 @@
-#!/bin/java-persistence-dbs
+#!/bin/sh
 # ----------------------------------------------------------------------------
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -116,7 +116,7 @@ done <"${0%/*}/.mvn/wrapper/maven-wrapper.properties"
 
 case "${distributionUrl##*/}" in
 maven-mvnd-*bin.*)
-  MVN_CMD=mvnd.java-persistence-dbs _MVNW_REPO_PATTERN=/maven/mvnd/
+  MVN_CMD=mvnd.sh _MVNW_REPO_PATTERN=/maven/mvnd/
   case "${PROCESSOR_ARCHITECTURE-}${PROCESSOR_ARCHITEW6432-}:$(uname -a)" in
   *AMD64:CYGWIN* | *AMD64:MINGW*) distributionPlatform=windows-amd64 ;;
   :Darwin*x86_64) distributionPlatform=darwin-amd64 ;;
@@ -129,7 +129,7 @@ maven-mvnd-*bin.*)
   esac
   distributionUrl="${distributionUrl%-bin.*}-$distributionPlatform.zip"
   ;;
-maven-mvnd-*) MVN_CMD=mvnd.java-persistence-dbs _MVNW_REPO_PATTERN=/maven/mvnd/ ;;
+maven-mvnd-*) MVN_CMD=mvnd.sh _MVNW_REPO_PATTERN=/maven/mvnd/ ;;
 *) MVN_CMD="mvn${0##*/mvnw}" _MVNW_REPO_PATTERN=/org/apache/maven/ ;;
 esac
 
@@ -222,7 +222,7 @@ fi
 # If specified, validate the SHA-256 sum of the Maven distribution zip file
 if [ -n "${distributionSha256Sum-}" ]; then
   distributionSha256Result=false
-  if [ "$MVN_CMD" = mvnd.java-persistence-dbs ]; then
+  if [ "$MVN_CMD" = mvnd.sh ]; then
     echo "Checksum validation is not supported for maven-mvnd." >&2
     echo "Please disable validation by removing 'distributionSha256Sum' from your maven-wrapper.properties." >&2
     exit 1

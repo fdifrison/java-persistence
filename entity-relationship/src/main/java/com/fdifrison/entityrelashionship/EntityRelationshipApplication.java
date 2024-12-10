@@ -18,7 +18,9 @@ public class EntityRelationshipApplication {
     @Bean
     CommandLineRunner runner(PostService postService) {
         return args -> {
-            postService.findAll();
+            //            var postId = postService.savePost().getId();
+            //            var postCommentId = postService.addComment(postId).getId();
+            //            postService.unlinkComment(postCommentId);
         };
     }
 }
