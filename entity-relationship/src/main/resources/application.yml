@@ -17,11 +17,31 @@ spring:
       ddl-auto: validate
     open-in-view: false
 
+
+log.level: trace
+
 logging:
   level:
+    liquibase: off
+    # shows transaction info
     org:
+      springframework:
+        data.jpa: ${log.level}
+        transaction.interceptor: ${log.level}
       hibernate:
-        SQL: debug
-        orm:
-          jdbc:
-            bind: trace
+        resource:
+          jdbc.internal.AbstractLogicalConnectionImplementor: ${log.level}
+          transaction.internal.TransactionCoordinatorBuilderInitiator: ${log.level}
+        engine:
+          internal: ${log.level}
+          jdbc.spi: ${log.level}
+          transaction: ${log.level}
+          query: ${log.level}
+        internal.util.type: ${log.level}
+        event.internal: ${log.level}
+        stat: ${log.level}
+        persister: ${log.level}
+        SQL: ${log.level}
+        orm.jdbc.bind: ${log.level}
+        type.descriptor: ${log.level}
+        cache: ${log.level}
