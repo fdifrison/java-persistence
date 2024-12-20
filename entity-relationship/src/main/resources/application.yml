@@ -18,7 +18,8 @@ spring:
     open-in-view: false
 
 
-log.level: trace
+log:
+  level: trace
 
 logging:
   level:
@@ -34,7 +35,7 @@ logging:
           transaction.internal.TransactionCoordinatorBuilderInitiator: ${log.level}
         engine:
           internal: ${log.level}
-          jdbc.spi: ${log.level}
+          jdbc: ${log.level}
           transaction: ${log.level}
           query: ${log.level}
         internal.util.type: ${log.level}
