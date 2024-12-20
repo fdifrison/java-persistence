@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
-      POSTGRES_MULTIPLE_DATABASES: many_to_one,one_to_one
+      POSTGRES_MULTIPLE_DATABASES: many_to_one,one_to_one,many_to_many
     ports:
       - "5432:5432"
     volumes:
