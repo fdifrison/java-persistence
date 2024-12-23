@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: many_to_one
+    active: many2one
   liquibase:
     contexts: ${spring.profiles.active}
   datasource:

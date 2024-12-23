@@ -11,5 +11,4 @@ public class EntityRelationshipApplication {
     public static void main(String[] args) {
         SpringApplication.run(EntityRelationshipApplication.class, args);
     }
-
 }

@@ -1,4 +1,7 @@
 databaseChangeLog:
   - includeAll:
-      path: db/changelog/many_to_one
-      context: many_to_one
+      path: db/changelog/many2one
+      context: many2one
+  - includeAll:
+      path: db/changelog/one2many
+      context: one2many
