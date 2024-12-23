@@ -5,8 +5,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "spring.profiles")
 public record Profiles(Active active) {
     public enum Active {
-        many_to_one,
-        one_to_one,
-        many_to_many
+        many2one,
+        one2many,
+        one2one,
+        many2many
     }
 }

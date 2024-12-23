@@ -1,7 +1,9 @@
-package com.fdifrison.entityrelashionship.many2one.childside;
+package com.fdifrison.entityrelashionship.one2many.unidirectional;
 
 import com.fdifrison.entityrelashionship.configurations.Profiles;
 import jakarta.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -16,15 +18,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
-public class m2oChildSide {
+public class o2mParentSide {
 
     public static void main(String[] args) {
-        new SpringApplicationBuilder(m2oChildSide.class)
-                .profiles(Profiles.Active.many2one.name())
+        new SpringApplicationBuilder(o2mParentSide.class)
+                .profiles(Profiles.Active.one2many.name())
                 .bannerMode(Banner.Mode.CONSOLE)
                 .run(args);
     }
@@ -34,8 +35,6 @@ public class m2oChildSide {
         return args -> {
             var post = postService.savePost();
             var comment = postService.addComment();
-            postService.linkCommentToPost(comment.id(), post);
-            postService.findCommentAndSetPostReferenceToNull(comment.id());
         };
     }
 }
@@ -65,39 +64,6 @@ class PostService {
         var postComment = new Comment().withComment("a comment");
         return postCommentRepository.save(postComment);
     }
-
-    /**
-     * @implNote since @Transactional is active and since comment as a foreign key with a @ManyToOne annotation on
-     * post_id, by setting the reference to the already persisted Post object hibernate will execute the update statement
-     * at flush time
-     * @apiNote a SELECT and an UPDATE statement are executed
-     */
-    @Transactional
-    public void linkCommentToPost(long postId, Post post) {
-        var comment = postCommentRepository.findById(postId).orElseThrow();
-        comment.post(post);
-    }
-
-    /**
-     * @apiNote no query executed
-     * @implNote since the comment entity is not part of the transaction setting the reference to the post won't fire
-     * any update statement
-     */
-    @Transactional
-    public void linkCommentToPostWontUpdate(Comment comment, Post post) {
-        comment.post(post);
-    }
-
-    /**
-     * @implNote since @Transactional is active and since comment as a foreign key with a @ManyToOne annotation on
-     * post_id, by setting the reference to null hibernate will execute the update statement at flush time
-     * @apiNote a SELECT and an UPDATE statement are executed
-     */
-    @Transactional
-    public void findCommentAndSetPostReferenceToNull(long id) {
-        var comment = postCommentRepository.findById(id).orElseThrow();
-        comment.post(null);
-    }
 }
 
 @Data
@@ -114,6 +80,10 @@ class Post {
 
     @Column(nullable = false)
     private @With String title;
+
+    @OneToMany
+    @JoinColumn(name = "post_id", nullable = false)
+    private List<Comment> comments = new ArrayList<>();
 }
 
 @Data
@@ -129,10 +99,4 @@ class Comment {
     private long id;
 
     private @With String comment;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    //  TODO @JoinColumn could be omitted since by default hibernate join the name of the identity attribute with
-    //   identifier using an underscore
-    @JoinColumn(name = "post_id")
-    private Post post;
 }

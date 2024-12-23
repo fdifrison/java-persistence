@@ -1,0 +1,34 @@
+databaseChangeLog:
+  - context: one2many
+  - changeSet:
+      id: 0
+      author: giovanni frison
+      changes:
+        - createTable:
+            tableName: post
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: title
+                  type: text
+                  constraints:
+                    nullable: false
+        - createTable:
+            tableName: post_comment
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: comment
+                  type: text
+                  constraints:
+                    nullable: false
