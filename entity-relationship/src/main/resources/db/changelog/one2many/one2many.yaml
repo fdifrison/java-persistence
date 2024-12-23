@@ -32,3 +32,23 @@ databaseChangeLog:
                   type: text
                   constraints:
                     nullable: false
+        - createTable:
+            tableName: post_post_comment
+            columns:
+              - column:
+                  name: post_id
+                  type: bigint
+                  constraints:
+                    foreignKeyName: post_id
+                    referencedTableName: post
+                    referencedColumnNames: id
+                    nullable: false
+              - column:
+                  name: comment_id
+                  type: bigint
+                  constraints:
+                    foreignKeyName: comment_id
+                    referencedTableName: post_comment
+                    referencedColumnNames: id
+                    nullable: false
+                    unique: true
