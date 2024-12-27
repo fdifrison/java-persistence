@@ -1,9 +1,9 @@
 package com.fdifrison.entityrelashionship.one2many.unidirectional;
 
 import com.fdifrison.entityrelashionship.configurations.Profiles;
+import com.fdifrison.entityrelashionship.utils.Printer;
 import jakarta.persistence.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,9 +15,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.annotation.Order;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
@@ -30,17 +33,58 @@ public class o2mParentSide {
                 .run(args);
     }
 
+    @Order(0)
     @Bean
-    CommandLineRunner runner(PostService postService) {
+    CommandLineRunner deleteFromListWith(PostService postService) {
         return args -> {
-            var post = postService.savePost();
-            var comment = postService.addComment();
+            var post = postService.savePostWithCommentsInCommentList();
+            postService.removeCommentFromList(post.id());
+            Printer.EoF();
+        };
+    }
+
+    @Order(1)
+    @Bean
+    CommandLineRunner deleteFirstFromListWithOrderColumn(PostService postService) {
+        return args -> {
+            var post = postService.savePostWithCommentsInCommentListWithOrder();
+            postService.removeFirstCommentFromListWithOrder(post.id());
+            Printer.EoF();
+        };
+    }
+
+    @Order(2)
+    @Bean
+    CommandLineRunner deleteLastFromListWithOrderColumn(PostService postService) {
+        return args -> {
+            var post = postService.savePostWithCommentsInCommentListWithOrder();
+            postService.removeLastCommentFromListWithOrder(post.id());
+            Printer.EoF();
+        };
+    }
+
+    @Order(3)
+    @Bean
+    CommandLineRunner runnerSet(PostService postService) {
+        return args -> {
+            var post = postService.savePostWithCommentsInCommentSet();
+            postService.removeLastCommentFromSet(post.id());
+            Printer.EoF();
         };
     }
 }
 
 @Repository
-interface PostRepository extends JpaRepository<Post, Long> {}
+interface PostRepository extends JpaRepository<Post, Long> {
+    @EntityGraph(attributePaths = Post_.COMMENT_LIST)
+    Optional<Post> findWithCommentsListById(long id);
+
+    @EntityGraph(attributePaths = Post_.COMMENT_LIST_WITH_ORDER)
+    Optional<Post> findWithCommentsListWithOrderById(long id);
+
+    @EntityGraph(attributePaths = Post_.COMMENTS_SET)
+    Optional<Post> findWithCommentsSetById(long id);
+}
 
 @Repository
 interface PostCommentRepository extends JpaRepository<Comment, Long> {}
@@ -49,20 +93,93 @@ interface PostCommentRepository extends JpaRepository<Comment, Long> {}
 class PostService {
 
     private final PostRepository postRepository;
-    private final PostCommentRepository postCommentRepository;
 
-    PostService(PostRepository postRepository, PostCommentRepository postCommentRepository) {
+    PostService(PostRepository postRepository) {
         this.postRepository = postRepository;
-        this.postCommentRepository = postCommentRepository;
     }
 
-    public Post savePost() {
-        return postRepository.save(new Post().withTitle("a new post"));
+    /**
+     * @apiNote 1 SAVE for post + n SAVE for comments + n SAVE for the join table
+     */
+    @Transactional
+    public Post savePostWithCommentsInCommentList() {
+        var post = postRepository.save(new Post().withTitle("a new post"));
+        post.commentList().add(new Comment().withComment("First comment"));
+        post.commentList().add(new Comment().withComment("Second comment"));
+        post.commentList().add(new Comment().withComment("Third comment"));
+        return post;
     }
 
-    public Comment addComment() {
-        var postComment = new Comment().withComment("a comment");
-        return postCommentRepository.save(postComment);
+    /**
+     * @apiNote 1 SAVE for post + n SAVE for comments + n SAVE for the join table
+     */
+    @Transactional
+    public Post savePostWithCommentsInCommentListWithOrder() {
+        var post = postRepository.save(new Post().withTitle("a new post"));
+        post.commentListWithOrder().add(new Comment().withComment("First comment"));
+        post.commentListWithOrder().add(new Comment().withComment("Second comment"));
+        post.commentListWithOrder().add(new Comment().withComment("Third comment"));
+        return post;
+    }
+
+    /**
+     * @apiNote 1 SAVE for post + n SAVE for comments + n SAVE for the join table
+     */
+    @Transactional
+    public Post savePostWithCommentsInCommentSet() {
+        var post = postRepository.save(new Post().withTitle("a new post"));
+        post.commentsSet().add(new Comment().withComment("First comment"));
+        post.commentsSet().add(new Comment().withComment("Second comment"));
+        post.commentsSet().add(new Comment().withComment("Third comment"));
+        return post;
+    }
+
+    /**
+     * @apiNote 1 DELETE (all) for join table + (n-1) (re)insert for join table + 1 DELETE for comment (due to the orphan removal)
+     * @implNote Since the List is an unordered collection, hibernate will first remove all the rows in the join table
+     * associated with the post_id, then it will re-add all but the one associated with the comment we are removing and,
+     * at last, since we set the orphanRemoval=true, a delete statement on the comment table
+     */
+    @Transactional
+    public void removeCommentFromList(long postId) {
+        var post = postRepository.findWithCommentsListById(postId).orElseThrow();
+        post.commentList().removeLast();
+    }
+
+    /**
+     * @apiNote 1 DELETE for join table + (n) update for join table + 1 DELETE for comment (due to the orphan removal)
+     * @implNote since a natural ordering is present in the join table (insertion_order) we can specify a @OrderColumn
+     * in the collection, this will allow hibernate to target the specific row to delete, but to preserver the ordering,
+     * if the element we want to delete is not the last, all the following rows will be updated to fill the gap
+     */
+    @Transactional
+    public void removeFirstCommentFromListWithOrder(long postId) {
+        var post = postRepository.findWithCommentsListWithOrderById(postId).orElseThrow();
+        post.commentListWithOrder().removeFirst();
+    }
+
+    /**
+     * @apiNote 1 DELETE for join table + 1 DELETE for comment (due to the orphan removal)
+     * @implNote since a natural ordering is present in the join table (insertion_order) we can specify a @OrderColumn
+     * in the collection, this will allow hibernate to target the specific row to delete, and since the element we are
+     * removing is the last one, the statement triggered are the same for a SET collection
+     */
+    @Transactional
+    public void removeLastCommentFromListWithOrder(long postId) {
+        var post = postRepository.findWithCommentsListWithOrderById(postId).orElseThrow();
+        post.commentListWithOrder().removeLast();
+    }
+
+    /**
+     * @apiNote 1 DELETE for join table + 1 DELETE for comment
+     */
+    @Transactional
+    public void removeLastCommentFromSet(long postId) {
+        var post = postRepository.findWithCommentsSetById(postId).orElseThrow();
+        var last = post.commentsSet().stream()
+                .max(Comparator.comparingLong(Comment::id))
+                .orElseThrow();
+        post.commentsSet().remove(last);
     }
 }
 
@@ -81,9 +198,27 @@ class Post {
     @Column(nullable = false)
     private @With String title;
 
-    @OneToMany
-    @JoinColumn(name = "post_id", nullable = false)
-    private List<Comment> comments = new ArrayList<>();
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinTable(
+            name = "post_comment",
+            joinColumns = @JoinColumn(name = "post_id"),
+            inverseJoinColumns = @JoinColumn(name = "comment_id"))
+    private List<Comment> commentList = new ArrayList<>();
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinTable(
+            name = "post_comment",
+            joinColumns = @JoinColumn(name = "post_id"),
+            inverseJoinColumns = @JoinColumn(name = "comment_id"))
+    @OrderColumn(name = "insertion_order")
+    private List<Comment> commentListWithOrder = new ArrayList<>();
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinTable(
+            name = "post_comment",
+            joinColumns = @JoinColumn(name = "post_id"),
+            inverseJoinColumns = @JoinColumn(name = "comment_id"))
+    private Set<Comment> commentsSet = new HashSet<>();
 }
 
 @Data
@@ -91,7 +226,7 @@ class Post {
 @AllArgsConstructor
 @Accessors(fluent = true)
 @Entity
-@Table(name = "post_comment")
+@Table(name = "comment")
 class Comment {
 
     @Id
