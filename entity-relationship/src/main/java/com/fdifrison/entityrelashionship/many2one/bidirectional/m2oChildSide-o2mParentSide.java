@@ -80,7 +80,7 @@ class PostService {
     }
 
     /**
-     * @apiNote 1 UPDATE for Post 1 DELETE for Comment is executed
+     * @apiNote 1 DELETE for Comment is executed
      * @implNote On the parent side the @OneToMany annotation pointing to the comment collections must have the option
      *  "orphanRemoval=true" otherwise the Post will be updated removing the Comment from its collection but the
      *  comment itself will remain orphan and the delete statement not triggered.
@@ -134,10 +134,10 @@ class Post {
 
     @Override
     public String toString() {
-        return "Post{" + "id="
+        return "\nPost{" + "id="
                 + id + ", title='"
                 + title + '\'' + ", comments=["
-                + comments.stream().map(Comment::comment).collect(Collectors.joining(",")) + "]}";
+                + comments.stream().map(Comment::comment).collect(Collectors.joining(",")) + "]}\n";
     }
 }
 
@@ -146,7 +146,7 @@ class Post {
 @AllArgsConstructor
 @Accessors(fluent = true)
 @Entity
-@Table(name = "post_comment")
+@Table(name = "comment")
 class Comment {
 
     @Id

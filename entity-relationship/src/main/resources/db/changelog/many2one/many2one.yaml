@@ -19,7 +19,7 @@ databaseChangeLog:
                   constraints:
                     nullable: false
         - createTable:
-            tableName: post_comment
+            tableName: comment
             columns:
               - column:
                   name: id
@@ -36,6 +36,6 @@ databaseChangeLog:
                   name: post_id
                   type: bigint
                   constraints:
-                    foreignKeyName: post_comment_post_id
+                    foreignKeyName: comment_post_id
                     referencedTableName: post
                     referencedColumnNames: id

@@ -44,17 +44,17 @@ public class m2oChildSide {
 interface PostRepository extends JpaRepository<Post, Long> {}
 
 @Repository
-interface PostCommentRepository extends JpaRepository<Comment, Long> {}
+interface CommentRepository extends JpaRepository<Comment, Long> {}
 
 @Service
 class PostService {
 
     private final PostRepository postRepository;
-    private final PostCommentRepository postCommentRepository;
+    private final CommentRepository commentRepository;
 
-    PostService(PostRepository postRepository, PostCommentRepository postCommentRepository) {
+    PostService(PostRepository postRepository, CommentRepository commentRepository) {
         this.postRepository = postRepository;
-        this.postCommentRepository = postCommentRepository;
+        this.commentRepository = commentRepository;
     }
 
     public Post savePost() {
@@ -63,7 +63,7 @@ class PostService {
 
     public Comment addComment() {
         var postComment = new Comment().withComment("a comment");
-        return postCommentRepository.save(postComment);
+        return commentRepository.save(postComment);
     }
 
     /**
@@ -74,7 +74,7 @@ class PostService {
      */
     @Transactional
     public void linkCommentToPost(long postId, Post post) {
-        var comment = postCommentRepository.findById(postId).orElseThrow();
+        var comment = commentRepository.findById(postId).orElseThrow();
         comment.post(post);
     }
 
@@ -95,7 +95,7 @@ class PostService {
      */
     @Transactional
     public void findCommentAndSetPostReferenceToNull(long id) {
-        var comment = postCommentRepository.findById(id).orElseThrow();
+        var comment = commentRepository.findById(id).orElseThrow();
         comment.post(null);
     }
 }
@@ -121,7 +121,7 @@ class Post {
 @AllArgsConstructor
 @Accessors(fluent = true)
 @Entity
-@Table(name = "post_comment")
+@Table(name = "comment")
 class Comment {
 
     @Id

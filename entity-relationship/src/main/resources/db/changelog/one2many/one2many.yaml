@@ -19,7 +19,7 @@ databaseChangeLog:
                   constraints:
                     nullable: false
         - createTable:
-            tableName: post_comment
+            tableName: comment
             columns:
               - column:
                   name: id
@@ -33,7 +33,7 @@ databaseChangeLog:
                   constraints:
                     nullable: false
         - createTable:
-            tableName: post_post_comment
+            tableName: post_comment
             columns:
               - column:
                   name: post_id
@@ -48,7 +48,13 @@ databaseChangeLog:
                   type: bigint
                   constraints:
                     foreignKeyName: comment_id
-                    referencedTableName: post_comment
+                    referencedTableName: comment
                     referencedColumnNames: id
                     nullable: false
                     unique: true
+              - column:
+                  name: insertion_order # required to use @OrderColumn in List mapping
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    nullable: false
