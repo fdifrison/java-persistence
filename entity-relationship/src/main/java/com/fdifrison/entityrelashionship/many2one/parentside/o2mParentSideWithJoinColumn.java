@@ -2,6 +2,9 @@ package com.fdifrison.entityrelashionship.many2one.parentside;
 
 import com.fdifrison.entityrelashionship.configurations.Profiles;
 import jakarta.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,10 +21,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
@@ -43,15 +42,12 @@ public class o2mParentSideWithJoinColumn {
     }
 }
 
-
 @Repository
 interface PostRepository extends JpaRepository<Post, Long> {
 
     @EntityGraph(attributePaths = Post_.COMMENTS)
     Optional<Post> findWithCommentsById(long id);
-
 }
-
 
 @Service
 class PostService {
@@ -108,7 +104,8 @@ class Post {
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = Comment_.POST_ID, nullable = false)
-    // TODO nullable=false is required so that a delete of a comment doesn't trigger two statements (1 UPDATE + 1 DELETE)
+    // TODO nullable=false is required so that a delete of a comment doesn't trigger two statements (1 UPDATE + 1
+    // DELETE)
     //  but only 1 delete
     private List<Comment> comments = new ArrayList<>();
 }

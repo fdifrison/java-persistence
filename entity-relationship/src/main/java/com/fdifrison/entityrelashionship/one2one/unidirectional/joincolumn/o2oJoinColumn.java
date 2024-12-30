@@ -3,6 +3,7 @@ package com.fdifrison.entityrelashionship.one2one.unidirectional.joincolumn;
 import com.fdifrison.entityrelashionship.configurations.Profiles;
 import com.fdifrison.entityrelashionship.one2one.unidirectional.mapsid.o2oMapsId;
 import jakarta.persistence.*;
+import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,8 +19,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
-
-import java.time.Instant;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
@@ -39,18 +38,13 @@ public class o2oJoinColumn {
             postService.saveDetail(post);
         };
     }
-
 }
 
 @Repository
-interface PostRepository extends JpaRepository<Post, Long> {
-}
+interface PostRepository extends JpaRepository<Post, Long> {}
 
 @Repository
-interface DetailRepository extends JpaRepository<Detail, Long> {
-}
-
-
+interface DetailRepository extends JpaRepository<Detail, Long> {}
 
 @Service
 class PostService {
@@ -70,7 +64,6 @@ class PostService {
     public void saveDetail(Post post) {
         detailRepository.save(new Detail().withPost(post));
     }
-
 }
 
 @Data
@@ -87,7 +80,6 @@ class Post {
 
     @Column(nullable = false)
     private @With String title;
-
 }
 
 @Data
@@ -115,4 +107,3 @@ class Detail {
     // TODO @JoinColumn not required since we have a column post_id in the detail table
     private @With Post post;
 }
-
