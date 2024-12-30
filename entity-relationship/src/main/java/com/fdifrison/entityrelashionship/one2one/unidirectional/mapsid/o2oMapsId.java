@@ -2,6 +2,7 @@ package com.fdifrison.entityrelashionship.one2one.unidirectional.mapsid;
 
 import com.fdifrison.entityrelashionship.configurations.Profiles;
 import jakarta.persistence.*;
+import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,8 +19,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
-
 @SpringBootApplication
 @ConfigurationPropertiesScan
 public class o2oMapsId {
@@ -33,17 +32,12 @@ public class o2oMapsId {
 
     @Bean
     CommandLineRunner runner(PostService postService) {
-        return args -> {
-
-        };
+        return args -> {};
     }
-
 }
 
 @Repository
-interface PostRepository extends JpaRepository<Post, Long> {
-}
-
+interface PostRepository extends JpaRepository<Post, Long> {}
 
 @Service
 class PostService {
@@ -53,7 +47,6 @@ class PostService {
     PostService(PostRepository postRepository) {
         this.postRepository = postRepository;
     }
-
 }
 
 @Data
@@ -70,9 +63,7 @@ class Post {
 
     @Column(nullable = false)
     private @With String title;
-
 }
-
 
 @Data
 @NoArgsConstructor
