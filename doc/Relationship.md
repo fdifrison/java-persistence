@@ -42,7 +42,7 @@ public void removeComment(Comment comment) {
 In this way, the removal of a comment is efficient since executes only one DELETE statement and remove the reference
 from the Comment object so that it can be garbage collected.
 
-# @OneToMany
+# Unidirectional @OneToMany (DON'T USE IF YOU CAN)
 
 Even if uncommon, we might opt to hold a unidirectional reference only on the parent-side of the relationship.
 Its performance depends on the implementation and on the type of collection we implement, but always worse (less
@@ -67,3 +67,20 @@ If there is a meaning of ordering in the join column we could use the `List` col
 annotation to reduce the burden of using lists; in this way, if we want to remove the last element only two delete
 statement are executed, one for the join table and one for the child table. However, if we are not removing the last
 element, hibernate will execute an update statement for each row that will be shifted.
+
+## `@JoinColumn`
+
+An alternative, that requires the child-entity to hold a reference to the parent, is to annotate the parent-side
+collection with the `@JoinColumn` annotation. However, this approach is also inefficient since for persisting elements
+in the parent side collection hibernate will have to issue and insert statement and an update for each element
+persisted. The update is required since the child entity is flushed before the parent-side collection, therefore,
+hibernate has no clue about the foreign key value, hence an update is required to set the foreign key. If the option
+`nullable=false` is specified in the `@JoinColumn` annotation, hibernate will flush the child entity with the foreign
+key populated, but it will issue an update statement anyway.
+
+Similarly, deleting an element from the parent-side collection has bad performance if the `nullable=false` is not set,
+hibernate will first fire an update statement on the child entity to set the foreign key value to null, and only after
+is will issue the delete statement to remove that same child entity. If `nullable=false` we save the first useless
+update statement.
+
+# @OneToOne
