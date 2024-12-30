@@ -84,3 +84,13 @@ is will issue the delete statement to remove that same child entity. If `nullabl
 update statement.
 
 # @OneToOne
+
+## unidirectional
+
+The one-to-one unidirectional relationship can be mapped in two ways, with a `@JoinColumn` or with a `@MapsId`
+annotation. In the first case we would need two indexes on the child table, one for its primary key and one for the
+foreign key pointing to the parent entity.
+
+With `@MapsId` we have several advantages, parent and child table shares the same primary key, therefore, even if the
+relation is unidirectional (from the child side) we can access the parent or the child knowing one id; the indexes on
+the child side are reduced to one.
