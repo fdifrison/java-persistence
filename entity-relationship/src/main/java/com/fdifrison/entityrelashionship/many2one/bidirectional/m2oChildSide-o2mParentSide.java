@@ -52,9 +52,6 @@ interface PostRepository extends JpaRepository<Post, Long> {
     Optional<Post> findWithCommentsById(long id);
 }
 
-@Repository
-interface PostCommentRepository extends JpaRepository<Comment, Long> {}
-
 @Service
 class PostService {
 
