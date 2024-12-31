@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
@@ -32,20 +33,38 @@ public class o2oMapsId {
 
     @Bean
     CommandLineRunner runner(PostService postService) {
-        return args -> {};
+        return args -> {
+            var post = postService.savePost();
+            postService.saveDetail(post.id());
+        };
     }
 }
 
 @Repository
 interface PostRepository extends JpaRepository<Post, Long> {}
 
+@Repository
+interface DetailRepository extends JpaRepository<DetailWithMapsId, Long> {}
+
 @Service
 class PostService {
 
     private final PostRepository postRepository;
+    private final DetailRepository detailRepository;
 
-    PostService(PostRepository postRepository) {
+    PostService(PostRepository postRepository, DetailRepository detailRepository) {
         this.postRepository = postRepository;
+        this.detailRepository = detailRepository;
+    }
+
+    public Post savePost() {
+        return postRepository.save(new Post().withTitle("Title"));
+    }
+
+    @Transactional
+    public void saveDetail(long postId) {
+        var post = postRepository.findById(postId).orElseThrow();
+        detailRepository.save(new DetailWithMapsId().withPost(post));
     }
 }
 
@@ -73,13 +92,15 @@ class Post {
 @Table(name = "detail_with_maps_id")
 class DetailWithMapsId {
 
+    @Id
+    private long postId;
+
     @CreationTimestamp
     @Column(nullable = false)
     private Instant createdOn;
 
     private String createdBy;
 
-    @Id
     @OneToOne
     @MapsId
     private @With Post post;

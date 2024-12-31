@@ -94,3 +94,20 @@ foreign key pointing to the parent entity.
 With `@MapsId` we have several advantages, parent and child table shares the same primary key, therefore, even if the
 relation is unidirectional (from the child side) we can access the parent or the child knowing one id; the indexes on
 the child side are reduced to one.
+
+## bidirectional
+
+If it is required to access the child entity even from the parent side, a `@OneToOne` annotation is required on the
+parent-side. However, there is the possibility of incurring in an N+1 performance bottleneck: in fact, since hibernate 
+needs to know if assign a null value or an object to the one-to-one mapping, a select query is performed for each post
+entity retrieved in order to check, and eventually find, if there is a child entity connected.
+
+Therefore, is a query like the following executed, n+1 queries are executed!
+
+```java
+@Query(value = """
+        select * from post p
+        where p.title like :title
+        """, nativeQuery = true)
+List<Post> findPostsWhereTitleIn(@Param("title") String title);
+```
