@@ -1,7 +1,6 @@
 package com.fdifrison.entityrelashionship.one2one.unidirectional.joincolumn;
 
 import com.fdifrison.entityrelashionship.configurations.Profiles;
-import com.fdifrison.entityrelashionship.one2one.unidirectional.mapsid.o2oMapsId;
 import jakarta.persistence.*;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
@@ -19,13 +18,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
 public class o2oJoinColumn {
 
     public static void main(String[] args) {
-        new SpringApplicationBuilder(o2oMapsId.class)
+        new SpringApplicationBuilder(o2oJoinColumn.class)
                 .profiles(Profiles.Active.one2one.name())
                 .bannerMode(Banner.Mode.CONSOLE)
                 .run(args);
@@ -35,7 +35,7 @@ public class o2oJoinColumn {
     CommandLineRunner runner(PostService postService) {
         return args -> {
             var post = postService.savePost();
-            postService.saveDetail(post);
+            postService.saveDetail(post.id());
         };
     }
 }
@@ -61,7 +61,9 @@ class PostService {
         return postRepository.save(new Post().withTitle("Title"));
     }
 
-    public void saveDetail(Post post) {
+    @Transactional
+    public void saveDetail(long postId) {
+        var post = postRepository.findById(postId).orElseThrow();
         detailRepository.save(new Detail().withPost(post));
     }
 }
@@ -86,7 +88,7 @@ class Post {
 @NoArgsConstructor
 @AllArgsConstructor
 @Accessors(fluent = true)
-@Entity
+@Entity(name = "Detail")
 @Table(name = "detail")
 class Detail {
 
