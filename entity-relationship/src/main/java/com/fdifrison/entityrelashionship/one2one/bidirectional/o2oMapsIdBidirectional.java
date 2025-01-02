@@ -5,10 +5,8 @@ import com.fdifrison.entityrelashionship.utils.Printer;
 import jakarta.persistence.*;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Table;
-
 import java.time.Instant;
 import java.util.List;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -46,9 +44,9 @@ public class o2oMapsIdBidirectional {
         return args -> {
             var post = testService.savePost();
             testService.saveDetail(post.id());
-            Printer.Focus("FetchType.Lazy doesn't work, two select query executed");
+            Printer.focus("FetchType.Lazy doesn't work, two select query executed");
             var byId = postRepository.findById(post.id()).orElseThrow();
-            System.out.println(byId);
+            Printer.entity(byId);
         };
     }
 
@@ -61,13 +59,13 @@ public class o2oMapsIdBidirectional {
                 testService.saveDetail(post.id());
             }
 
-            Printer.Focus("Proxy works from the child side");
+            Printer.focus("Proxy works from the child side");
             var detailWithMapsIdWhereCreatedByIn = testService.findDetailWithMapsIdWhereCreatedByIn("Pot%");
-            System.out.println(detailWithMapsIdWhereCreatedByIn);
+            Printer.entity(detailWithMapsIdWhereCreatedByIn);
 
-            Printer.Focus("N+1 query executed!");
+            Printer.focus("N+1 query executed!");
             var postsWhereTitleIn = testService.findPostsWhereTitleIn("Tit%");
-            System.out.println(postsWhereTitleIn);
+            Printer.entity(postsWhereTitleIn);
         };
     }
 }
@@ -76,7 +74,8 @@ public class o2oMapsIdBidirectional {
 interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query(
-            value = """
+            value =
+                    """
                     select * from post p
                     where p.title like :title
                     """,
@@ -88,7 +87,8 @@ interface PostRepository extends JpaRepository<Post, Long> {
 interface DetailRepository extends JpaRepository<DetailWithMapsId, Long> {
 
     @Query(
-            value = """
+            value =
+                    """
                     select * from detail_with_maps_id d
                     where d.created_by like :createdBy
                     """,
@@ -114,7 +114,7 @@ class TestService {
     @Transactional
     public void saveDetail(long postId) {
         var post = postRepository.findById(postId).orElseThrow();
-        Printer.Focus();
+        Printer.focus();
         post.setDetail(new DetailWithMapsId().withCreatedBy("Potter"));
     }
 

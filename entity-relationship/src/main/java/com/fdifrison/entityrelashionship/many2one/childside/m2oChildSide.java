@@ -1,6 +1,7 @@
 package com.fdifrison.entityrelashionship.many2one.childside;
 
 import com.fdifrison.entityrelashionship.configurations.Profiles;
+import com.fdifrison.entityrelashionship.utils.Printer;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -34,7 +35,11 @@ public class m2oChildSide {
         return args -> {
             var post = testService.savePost();
             var comment = testService.addComment();
+
+            Printer.focus("Add comment to post");
             testService.linkCommentToPost(comment.id(), post);
+
+            Printer.focus("Remove comment from post");
             testService.findCommentAndSetPostReferenceToNull(comment.id());
         };
     }
@@ -89,7 +94,7 @@ class TestService {
     }
 
     /**
-     * @implNote since @Transactional is active and since comment as a foreign key with a @ManyToOne annotation on
+     * @implNote since comment as a foreign key with a @ManyToOne annotation on
      * post_id, by setting the reference to null hibernate will execute the update statement at flush time
      * @apiNote a SELECT and an UPDATE statement are executed
      */

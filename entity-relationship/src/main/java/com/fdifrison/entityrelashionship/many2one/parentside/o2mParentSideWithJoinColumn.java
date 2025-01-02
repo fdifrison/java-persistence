@@ -1,6 +1,7 @@
 package com.fdifrison.entityrelashionship.many2one.parentside;
 
 import com.fdifrison.entityrelashionship.configurations.Profiles;
+import com.fdifrison.entityrelashionship.utils.Printer;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +37,7 @@ public class o2mParentSideWithJoinColumn {
     @Bean
     CommandLineRunner runner(TestService testService) {
         return args -> {
+            Printer.focus("Inefficient mapping");
             var post = testService.savePostWithComment();
             testService.deleteLastComment(post.id());
         };

@@ -35,11 +35,12 @@ public class o2mParentSide {
 
     @Order(0)
     @Bean
-    CommandLineRunner deleteFromListWith(TestService testService) {
+    CommandLineRunner deleteFromList(TestService testService) {
         return args -> {
             var post = testService.savePostWithCommentsInCommentList();
+            Printer.focus("Deleting from List mapping");
             testService.removeCommentFromList(post.id());
-            Printer.EoF();
+
         };
     }
 
@@ -48,8 +49,9 @@ public class o2mParentSide {
     CommandLineRunner deleteFirstFromListWithOrderColumn(TestService testService) {
         return args -> {
             var post = testService.savePostWithCommentsInCommentListWithOrder();
+            Printer.focus("Deleting first element from List mapping with order column");
             testService.removeFirstCommentFromListWithOrder(post.id());
-            Printer.EoF();
+
         };
     }
 
@@ -58,8 +60,9 @@ public class o2mParentSide {
     CommandLineRunner deleteLastFromListWithOrderColumn(TestService testService) {
         return args -> {
             var post = testService.savePostWithCommentsInCommentListWithOrder();
+            Printer.focus("Deleting last element from List mapping with order column");
             testService.removeLastCommentFromListWithOrder(post.id());
-            Printer.EoF();
+
         };
     }
 
@@ -68,8 +71,9 @@ public class o2mParentSide {
     CommandLineRunner runnerSet(TestService testService) {
         return args -> {
             var post = testService.savePostWithCommentsInCommentSet();
+            Printer.focus("Deleting last element from Set mapping");
             testService.removeLastCommentFromSet(post.id());
-            Printer.EoF();
+
         };
     }
 }

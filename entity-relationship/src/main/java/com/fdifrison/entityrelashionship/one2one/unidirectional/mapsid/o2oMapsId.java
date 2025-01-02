@@ -1,6 +1,7 @@
 package com.fdifrison.entityrelashionship.one2one.unidirectional.mapsid;
 
 import com.fdifrison.entityrelashionship.configurations.Profiles;
+import com.fdifrison.entityrelashionship.utils.Printer;
 import jakarta.persistence.*;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
@@ -34,6 +35,10 @@ public class o2oMapsId {
     @Bean
     CommandLineRunner runner(TestService testService) {
         return args -> {
+            // TODO there is no difference in terms of performance between the join column and the maps id approach,
+            //  however the latter has the potential to give also (indirectly) a bidirectional access from the parent to the
+            //  child entity, and to save the space of one useless index for the child primary key
+            Printer.focus("Unidirectional mapping with maps id");
             var post = testService.savePost();
             testService.saveDetail(post.id());
         };

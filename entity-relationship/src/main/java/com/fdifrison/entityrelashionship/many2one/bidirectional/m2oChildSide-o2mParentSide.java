@@ -1,6 +1,7 @@
 package com.fdifrison.entityrelashionship.many2one.bidirectional;
 
 import com.fdifrison.entityrelashionship.configurations.Profiles;
+import com.fdifrison.entityrelashionship.utils.Printer;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,13 +35,16 @@ class m2oBidirectional {
     @Bean
     CommandLineRunner runner(TestService testService, PostRepository postRepository) {
         return args -> {
+            Printer.focus("Saving post with comments");
             Post postState;
             var post = testService.savePostWithComments();
             postState = postRepository.findWithCommentsById(post.id()).orElseThrow();
-            System.out.println(postState);
+            Printer.entity(postState);
+
+            Printer.focus("Removing last comment");
             var updatedPost = testService.removeLastComment(postState.id());
             postState = postRepository.findWithCommentsById(updatedPost.id()).orElseThrow();
-            System.out.println(postState);
+            Printer.entity(postState);
         };
     }
 }

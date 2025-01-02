@@ -128,3 +128,15 @@ As for a unidirectional `@OneToMany` association there is a difference in the be
 collection type; as a matter of fact, while Lists and Sets behave equally for insertion, upon deletion Lists will first
 remove all the rows associated with the id of the entity owner of the collection, to then reinsert all the rows but the
 one that actually we wanted to remove. Sets instead execute a punctual delete on the row of the join table.
+
+Usually, the join table is not modelled explicitly but embedded in one of the two parent-side with the `@JoinTable`
+annotation
+
+```java
+@ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+@JoinTable(
+        name = "post_tag",
+        joinColumns = @JoinColumn(name = "post_id"),
+        inverseJoinColumns = @JoinColumn(name = "tag_id"))
+private Set<Tag> tags = new HashSet<>();
+```
