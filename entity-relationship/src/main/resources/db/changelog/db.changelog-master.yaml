@@ -8,3 +8,6 @@ databaseChangeLog:
   - includeAll:
       path: db/changelog/one2one
       context: one2one
+  - includeAll:
+      path: db/changelog/many2many
+      context: many2many

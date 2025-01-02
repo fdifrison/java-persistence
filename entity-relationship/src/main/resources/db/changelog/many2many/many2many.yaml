@@ -1,0 +1,52 @@
+databaseChangeLog:
+  - context: many2one
+  - changeSet:
+      id: 0
+      author: giovanni frison
+      changes:
+        - createTable:
+            tableName: post
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: title
+                  type: text
+                  constraints:
+                    nullable: false
+        - createTable:
+            tableName: tag
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: name
+                  type: text
+                  constraints:
+                    nullable: false
+        - createTable:
+            tableName: post_tag
+            columns:
+              - column:
+                  name: post_id
+                  type: bigint
+                  constraints:
+                    foreignKeyName: post_tag_post_id
+                    referencedTableName: post
+                    referencedColumnNames: id
+              - column:
+                  name: tag_id
+                  type: bigint
+                  constraints:
+                    foreignKeyName: post_tag_tag_id
+                    referencedTableName: tag
+                    referencedColumnNames: id
+

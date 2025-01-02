@@ -5,8 +5,10 @@ import com.fdifrison.entityrelashionship.utils.Printer;
 import jakarta.persistence.*;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Table;
+
 import java.time.Instant;
 import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -52,7 +54,7 @@ public class o2oMapsIdBidirectional {
 
     @Order(1)
     @Bean
-    CommandLineRunner nPlusOne(PostService postService, PostRepository postRepository) {
+    CommandLineRunner nPlusOne(PostService postService) {
         return args -> {
             for (int i = 0; i < 3; i++) {
                 var post = postService.savePost();
@@ -75,9 +77,9 @@ interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query(
             value = """
-            select * from post p
-            where p.title like :title
-            """,
+                    select * from post p
+                    where p.title like :title
+                    """,
             nativeQuery = true)
     List<Post> findPostsWhereTitleIn(@Param("title") String title);
 }
@@ -86,11 +88,10 @@ interface PostRepository extends JpaRepository<Post, Long> {
 interface DetailRepository extends JpaRepository<DetailWithMapsId, Long> {
 
     @Query(
-            value =
-                    """
-            select * from detail_with_maps_id d
-            where d.created_by like :createdBy
-            """,
+            value = """
+                    select * from detail_with_maps_id d
+                    where d.created_by like :createdBy
+                    """,
             nativeQuery = true)
     List<DetailWithMapsId> findDetailWithMapsIdWhereCreatedByIn(@Param("createdBy") String createdBy);
 }
