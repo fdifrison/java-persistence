@@ -34,10 +34,10 @@ public class o2mParentSideWithJoinColumn {
     }
 
     @Bean
-    CommandLineRunner runner(PostService postService) {
+    CommandLineRunner runner(TestService testService) {
         return args -> {
-            var post = postService.savePostWithComment();
-            postService.deleteLastComment(post.id());
+            var post = testService.savePostWithComment();
+            testService.deleteLastComment(post.id());
         };
     }
 }
@@ -50,11 +50,11 @@ interface PostRepository extends JpaRepository<Post, Long> {
 }
 
 @Service
-class PostService {
+class TestService {
 
     private final PostRepository postRepository;
 
-    PostService(PostRepository postRepository) {
+    TestService(PostRepository postRepository) {
         this.postRepository = postRepository;
     }
 

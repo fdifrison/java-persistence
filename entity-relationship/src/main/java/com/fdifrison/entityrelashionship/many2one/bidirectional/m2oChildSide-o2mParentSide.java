@@ -32,13 +32,13 @@ class m2oBidirectional {
     }
 
     @Bean
-    CommandLineRunner runner(PostService postService, PostRepository postRepository) {
+    CommandLineRunner runner(TestService testService, PostRepository postRepository) {
         return args -> {
             Post postState;
-            var post = postService.savePostWithComments();
+            var post = testService.savePostWithComments();
             postState = postRepository.findWithCommentsById(post.id()).orElseThrow();
             System.out.println(postState);
-            var updatedPost = postService.removeLastComment(postState.id());
+            var updatedPost = testService.removeLastComment(postState.id());
             postState = postRepository.findWithCommentsById(updatedPost.id()).orElseThrow();
             System.out.println(postState);
         };
@@ -53,11 +53,11 @@ interface PostRepository extends JpaRepository<Post, Long> {
 }
 
 @Service
-class PostService {
+class TestService {
 
     private final PostRepository postRepository;
 
-    PostService(PostRepository postRepository) {
+    TestService(PostRepository postRepository) {
         this.postRepository = postRepository;
     }
 

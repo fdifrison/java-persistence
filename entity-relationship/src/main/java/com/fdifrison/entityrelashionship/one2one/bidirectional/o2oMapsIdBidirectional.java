@@ -42,10 +42,10 @@ public class o2oMapsIdBidirectional {
 
     @Order(0)
     @Bean
-    CommandLineRunner runner(PostService postService, PostRepository postRepository) {
+    CommandLineRunner runner(TestService testService, PostRepository postRepository) {
         return args -> {
-            var post = postService.savePost();
-            postService.saveDetail(post.id());
+            var post = testService.savePost();
+            testService.saveDetail(post.id());
             Printer.Focus("FetchType.Lazy doesn't work, two select query executed");
             var byId = postRepository.findById(post.id()).orElseThrow();
             System.out.println(byId);
@@ -54,19 +54,19 @@ public class o2oMapsIdBidirectional {
 
     @Order(1)
     @Bean
-    CommandLineRunner nPlusOne(PostService postService) {
+    CommandLineRunner nPlusOne(TestService testService) {
         return args -> {
             for (int i = 0; i < 3; i++) {
-                var post = postService.savePost();
-                postService.saveDetail(post.id());
+                var post = testService.savePost();
+                testService.saveDetail(post.id());
             }
 
             Printer.Focus("Proxy works from the child side");
-            var detailWithMapsIdWhereCreatedByIn = postService.findDetailWithMapsIdWhereCreatedByIn("Pot%");
+            var detailWithMapsIdWhereCreatedByIn = testService.findDetailWithMapsIdWhereCreatedByIn("Pot%");
             System.out.println(detailWithMapsIdWhereCreatedByIn);
 
             Printer.Focus("N+1 query executed!");
-            var postsWhereTitleIn = postService.findPostsWhereTitleIn("Tit%");
+            var postsWhereTitleIn = testService.findPostsWhereTitleIn("Tit%");
             System.out.println(postsWhereTitleIn);
         };
     }
@@ -97,12 +97,12 @@ interface DetailRepository extends JpaRepository<DetailWithMapsId, Long> {
 }
 
 @Service
-class PostService {
+class TestService {
 
     private final PostRepository postRepository;
     private final DetailRepository detailRepository;
 
-    PostService(PostRepository postRepository, DetailRepository detailRepository) {
+    TestService(PostRepository postRepository, DetailRepository detailRepository) {
         this.postRepository = postRepository;
         this.detailRepository = detailRepository;
     }

@@ -35,40 +35,40 @@ public class o2mParentSide {
 
     @Order(0)
     @Bean
-    CommandLineRunner deleteFromListWith(PostService postService) {
+    CommandLineRunner deleteFromListWith(TestService testService) {
         return args -> {
-            var post = postService.savePostWithCommentsInCommentList();
-            postService.removeCommentFromList(post.id());
+            var post = testService.savePostWithCommentsInCommentList();
+            testService.removeCommentFromList(post.id());
             Printer.EoF();
         };
     }
 
     @Order(1)
     @Bean
-    CommandLineRunner deleteFirstFromListWithOrderColumn(PostService postService) {
+    CommandLineRunner deleteFirstFromListWithOrderColumn(TestService testService) {
         return args -> {
-            var post = postService.savePostWithCommentsInCommentListWithOrder();
-            postService.removeFirstCommentFromListWithOrder(post.id());
+            var post = testService.savePostWithCommentsInCommentListWithOrder();
+            testService.removeFirstCommentFromListWithOrder(post.id());
             Printer.EoF();
         };
     }
 
     @Order(2)
     @Bean
-    CommandLineRunner deleteLastFromListWithOrderColumn(PostService postService) {
+    CommandLineRunner deleteLastFromListWithOrderColumn(TestService testService) {
         return args -> {
-            var post = postService.savePostWithCommentsInCommentListWithOrder();
-            postService.removeLastCommentFromListWithOrder(post.id());
+            var post = testService.savePostWithCommentsInCommentListWithOrder();
+            testService.removeLastCommentFromListWithOrder(post.id());
             Printer.EoF();
         };
     }
 
     @Order(3)
     @Bean
-    CommandLineRunner runnerSet(PostService postService) {
+    CommandLineRunner runnerSet(TestService testService) {
         return args -> {
-            var post = postService.savePostWithCommentsInCommentSet();
-            postService.removeLastCommentFromSet(post.id());
+            var post = testService.savePostWithCommentsInCommentSet();
+            testService.removeLastCommentFromSet(post.id());
             Printer.EoF();
         };
     }
@@ -87,11 +87,11 @@ interface PostRepository extends JpaRepository<Post, Long> {
 }
 
 @Service
-class PostService {
+class TestService {
 
     private final PostRepository postRepository;
 
-    PostService(PostRepository postRepository) {
+    TestService(PostRepository postRepository) {
         this.postRepository = postRepository;
     }
 
