@@ -1,5 +1,5 @@
 databaseChangeLog:
-  - context: many2one
+  - context: many2many
   - changeSet:
       id: 0
       author: giovanni frison
