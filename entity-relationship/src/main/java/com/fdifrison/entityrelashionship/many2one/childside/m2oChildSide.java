@@ -30,12 +30,12 @@ public class m2oChildSide {
     }
 
     @Bean
-    CommandLineRunner runner(PostService postService) {
+    CommandLineRunner runner(TestService testService) {
         return args -> {
-            var post = postService.savePost();
-            var comment = postService.addComment();
-            postService.linkCommentToPost(comment.id(), post);
-            postService.findCommentAndSetPostReferenceToNull(comment.id());
+            var post = testService.savePost();
+            var comment = testService.addComment();
+            testService.linkCommentToPost(comment.id(), post);
+            testService.findCommentAndSetPostReferenceToNull(comment.id());
         };
     }
 }
@@ -47,12 +47,12 @@ interface PostRepository extends JpaRepository<Post, Long> {}
 interface CommentRepository extends JpaRepository<Comment, Long> {}
 
 @Service
-class PostService {
+class TestService {
 
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
 
-    PostService(PostRepository postRepository, CommentRepository commentRepository) {
+    TestService(PostRepository postRepository, CommentRepository commentRepository) {
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
     }

@@ -32,10 +32,10 @@ public class o2oMapsId {
     }
 
     @Bean
-    CommandLineRunner runner(PostService postService) {
+    CommandLineRunner runner(TestService testService) {
         return args -> {
-            var post = postService.savePost();
-            postService.saveDetail(post.id());
+            var post = testService.savePost();
+            testService.saveDetail(post.id());
         };
     }
 }
@@ -47,12 +47,12 @@ interface PostRepository extends JpaRepository<Post, Long> {}
 interface DetailRepository extends JpaRepository<DetailWithMapsId, Long> {}
 
 @Service
-class PostService {
+class TestService {
 
     private final PostRepository postRepository;
     private final DetailRepository detailRepository;
 
-    PostService(PostRepository postRepository, DetailRepository detailRepository) {
+    TestService(PostRepository postRepository, DetailRepository detailRepository) {
         this.postRepository = postRepository;
         this.detailRepository = detailRepository;
     }
