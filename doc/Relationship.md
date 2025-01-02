@@ -98,16 +98,33 @@ the child side are reduced to one.
 ## bidirectional
 
 If it is required to access the child entity even from the parent side, a `@OneToOne` annotation is required on the
-parent-side. However, there is the possibility of incurring in an N+1 performance bottleneck: in fact, since hibernate 
+parent-side. However, there is the possibility of incurring in an N+1 performance bottleneck: in fact, since hibernate
 needs to know if assign a null value or an object to the one-to-one mapping, a select query is performed for each post
 entity retrieved in order to check, and eventually find, if there is a child entity connected.
 
 Therefore, is a query like the following executed, n+1 queries are executed!
 
 ```java
+
 @Query(value = """
         select * from post p
         where p.title like :title
         """, nativeQuery = true)
 List<Post> findPostsWhereTitleIn(@Param("title") String title);
 ```
+
+# @ManyToMany
+
+In a many-to-many relationship, each side of the relation act as a parent-side, while the join table can be considered
+as the child. The association can be either unidirectional or bidirectional, depending on the fact that we might need to
+access the collection from both sides. However, in JPA terms, even in a bidirectional mapping, only one side will be
+responsible to synchronize the mapping. Due to the parent-to-parent relation, the cascade type is confined to `PERSIST`
+and `MERGE` operations, since none of the sides owns the other and, therefore, has no means to determine a cascade
+delete for example. Furthermore, in the case of a bidirectional mapping, cascade delete would have catastrophic
+consequence, since the deleting will be ping-ponged between the two entity, resulting in the complete deletion of all
+records.
+
+As for a unidirectional `@OneToMany` association there is a difference in the behavior triggered by the underling
+collection type; as a matter of fact, while Lists and Sets behave equally for insertion, upon deletion Lists will first
+remove all the rows associated with the id of the entity owner of the collection, to then reinsert all the rows but the
+one that actually we wanted to remove. Sets instead execute a punctual delete on the row of the join table.
