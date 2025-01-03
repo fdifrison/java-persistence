@@ -40,7 +40,7 @@ public class m2mUnidirectional {
     @Order(0)
     @Bean
     CommandLineRunner runner(TestService testService) {
-        return args -> {
+        return _ -> {
             Printer.focus("Inserting a post with tags");
             var post = new Post()
                     .withTitle("First Post")
