@@ -1,7 +1,7 @@
-package com.fdifrison.entityrelashionship.many2one.childside;
+package com.fdifrison.many2one.childside;
 
-import com.fdifrison.entityrelashionship.configurations.Profiles;
-import com.fdifrison.entityrelashionship.utils.Printer;
+import com.fdifrison.configurations.Profiles;
+import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;

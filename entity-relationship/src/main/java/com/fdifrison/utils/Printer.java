@@ -1,4 +1,4 @@
-package com.fdifrison.entityrelashionship.utils;
+package com.fdifrison.utils;
 
 public class Printer {
 

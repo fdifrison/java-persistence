@@ -1,7 +1,7 @@
-package com.fdifrison.entityrelashionship.many2one.bidirectional;
+package com.fdifrison.many2one.bidirectional;
 
-import com.fdifrison.entityrelashionship.configurations.Profiles;
-import com.fdifrison.entityrelashionship.utils.Printer;
+import com.fdifrison.configurations.Profiles;
+import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;

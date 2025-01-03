@@ -1,7 +1,7 @@
-package com.fdifrison.entityrelashionship.one2one.unidirectional.joincolumn;
+package com.fdifrison.one2one.unidirectional.mapsid;
 
-import com.fdifrison.entityrelashionship.configurations.Profiles;
-import com.fdifrison.entityrelashionship.utils.Printer;
+import com.fdifrison.configurations.Profiles;
+import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
@@ -23,10 +23,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
-public class o2oJoinColumn {
+public class o2oMapsId {
 
     public static void main(String[] args) {
-        new SpringApplicationBuilder(o2oJoinColumn.class)
+        new SpringApplicationBuilder(o2oMapsId.class)
                 .profiles(Profiles.Active.one2one.name())
                 .bannerMode(Banner.Mode.CONSOLE)
                 .run(args);
@@ -34,11 +34,12 @@ public class o2oJoinColumn {
 
     @Bean
     CommandLineRunner runner(TestService testService) {
-        // TODO there is no difference in terms of performance between the join column and the maps id approach,
-        //  however the latter has the potential to give also (indirectly) a bidirectional access from the parent to the
-        //  child entity, and to save the space of one useless index for the child primary key
         return args -> {
-            Printer.focus("Unidirectional mapping with join column");
+            // TODO there is no difference in terms of performance between the join column and the maps id approach,
+            //  however the latter has the potential to give also (indirectly) a bidirectional access from the parent to
+            // the
+            //  child entity, and to save the space of one useless index for the child primary key
+            Printer.focus("Unidirectional mapping with maps id");
             var post = testService.savePost();
             testService.saveDetail(post.id());
         };
@@ -49,7 +50,7 @@ public class o2oJoinColumn {
 interface PostRepository extends JpaRepository<Post, Long> {}
 
 @Repository
-interface DetailRepository extends JpaRepository<Detail, Long> {}
+interface DetailRepository extends JpaRepository<DetailWithMapsId, Long> {}
 
 @Service
 class TestService {
@@ -69,7 +70,7 @@ class TestService {
     @Transactional
     public void saveDetail(long postId) {
         var post = postRepository.findById(postId).orElseThrow();
-        detailRepository.save(new Detail().withPost(post));
+        detailRepository.save(new DetailWithMapsId().withPost(post));
     }
 }
 
@@ -93,15 +94,12 @@ class Post {
 @NoArgsConstructor
 @AllArgsConstructor
 @Accessors(fluent = true)
-@Entity(name = "Detail")
-@Table(name = "detail")
-class Detail {
-
-    // TODO we have two indexes, one for the primary key and one for the foreign key
+@Entity
+@Table(name = "detail_with_maps_id")
+class DetailWithMapsId {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private long postId;
 
     @CreationTimestamp
     @Column(nullable = false)
@@ -110,7 +108,6 @@ class Detail {
     private String createdBy;
 
     @OneToOne
-    @JoinColumn(name = "post_id")
-    // TODO @JoinColumn not required since we have a column post_id in the detail table
+    @MapsId
     private @With Post post;
 }

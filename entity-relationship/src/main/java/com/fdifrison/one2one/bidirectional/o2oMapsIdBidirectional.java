@@ -1,7 +1,7 @@
-package com.fdifrison.entityrelashionship.one2one.bidirectional;
+package com.fdifrison.one2one.bidirectional;
 
-import com.fdifrison.entityrelashionship.configurations.Profiles;
-import com.fdifrison.entityrelashionship.utils.Printer;
+import com.fdifrison.configurations.Profiles;
+import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Table;

@@ -1,9 +1,9 @@
-package com.fdifrison.entityrelashionship.many2many.explicit;
+package com.fdifrison.many2many.explicit;
 
-import com.fdifrison.entityrelashionship.configurations.Profiles;
-import com.fdifrison.entityrelashionship.many2many.bidirectional.Post_;
-import com.fdifrison.entityrelashionship.many2many.bidirectional.Tag_;
-import com.fdifrison.entityrelashionship.utils.Printer;
+import com.fdifrison.configurations.Profiles;
+import com.fdifrison.many2many.bidirectional.Post_;
+import com.fdifrison.many2many.bidirectional.Tag_;
+import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
 import java.util.*;
 import lombok.*;

@@ -6,9 +6,9 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
-public class InheritanceApp {
+public class App {
 
     public static void main(String[] args) {
-        SpringApplication.run(InheritanceApp.class, args);
+        SpringApplication.run(App.class, args);
     }
 }

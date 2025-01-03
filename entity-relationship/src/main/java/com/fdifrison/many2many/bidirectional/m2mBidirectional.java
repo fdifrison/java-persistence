@@ -1,15 +1,12 @@
-package com.fdifrison.entityrelashionship.many2many.unidirectional;
+package com.fdifrison.many2many.bidirectional;
 
-import com.fdifrison.entityrelashionship.configurations.Profiles;
-import com.fdifrison.entityrelashionship.utils.Printer;
+import com.fdifrison.configurations.Profiles;
+import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.With;
+import lombok.*;
 import lombok.experimental.Accessors;
 import org.springframework.boot.Banner;
 import org.springframework.boot.CommandLineRunner;
@@ -26,10 +23,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
-public class m2mUnidirectional {
+public class m2mBidirectional {
 
     public static void main(String[] args) {
-        new SpringApplicationBuilder(m2mUnidirectional.class)
+        new SpringApplicationBuilder(m2mBidirectional.class)
                 .profiles(Profiles.Active.many2many.name())
                 .bannerMode(Banner.Mode.CONSOLE)
                 .run(args);
@@ -47,6 +44,12 @@ public class m2mUnidirectional {
             var savePost = testService.savePost(post);
             Printer.entity(savePost);
 
+            Printer.focus("Retrieving tag from Tag repository");
+            var tagById = testService.findTagById(
+                    savePost.tags().stream().findFirst().map(Tag::id).orElseThrow());
+            Printer.entity(tagById);
+
+            // TODO check not working!!!!!!!!!
             Printer.focus("Dropping a Tag");
             var droppedTag = testService.dropTag(
                     savePost.id(),
@@ -61,21 +64,25 @@ public class m2mUnidirectional {
 
 @Repository
 interface PostRepository extends JpaRepository<Post, Long> {
-
     @EntityGraph(attributePaths = Post_.TAGS)
-    Optional<Post> findWithTagsById(Long aLong);
+    Optional<Post> findWithTagsById(long id);
 }
 
 @Repository
-interface TagRepository extends JpaRepository<Tag, Long> {}
+interface TagRepository extends JpaRepository<Tag, Long> {
+
+    @EntityGraph(attributePaths = Tag_.POSTS)
+    Optional<Tag> findWithPostsById(long id);
+}
 
 @Service
 class TestService {
-
     private final PostRepository postRepository;
+    private final TagRepository tagRepository;
 
-    TestService(PostRepository postRepository) {
+    TestService(PostRepository postRepository, TagRepository tagRepository) {
         this.postRepository = postRepository;
+        this.tagRepository = tagRepository;
     }
 
     /**
@@ -87,6 +94,10 @@ class TestService {
         return postRepository.save(post);
     }
 
+    public Tag findTagById(long id) {
+        return tagRepository.findWithPostsById(id).orElseThrow();
+    }
+
     @Transactional
     public Post dropTag(long postId, Tag tag) {
         var post = postRepository.findWithTagsById(postId).orElseThrow();
@@ -94,7 +105,7 @@ class TestService {
     }
 }
 
-@Data
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Accessors(fluent = true)
@@ -120,16 +131,23 @@ class Post {
 
     public Post addTag(Tag tag) {
         tags.add(tag);
+        tag.posts().add(this);
         return this;
     }
 
     public Post removeTag(Tag tag) {
         tags.remove(tag);
+        tag.posts().remove(this);
         return this;
+    }
+
+    @Override
+    public String toString() {
+        return "Post{" + "id=" + id + ", title='" + title + '\'' + ", tags=" + tags + '}';
     }
 }
 
-@Data
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Accessors(fluent = true)
@@ -143,4 +161,12 @@ class Tag {
 
     @Column(nullable = false)
     private @With String name;
+
+    @ManyToMany(mappedBy = Post_.TAGS)
+    private Set<Post> posts = new HashSet<>();
+
+    @Override
+    public String toString() {
+        return "Tag{" + "id=" + id + ", name='" + name + '}';
+    }
 }
