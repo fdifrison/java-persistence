@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.0</version>
+        <version>3.4.1</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.fdifrison</groupId>
@@ -17,11 +17,12 @@
 
     <modules>
         <module>entity-relationship</module>
+        <module>inheritance</module>
     </modules>
 
     <properties>
         <java.version>23</java.version>
-        <spotless-maven-plugin.version>2.44.0.BETA3</spotless-maven-plugin.version>
+        <spotless-maven-plugin.version>2.44.0.BETA4</spotless-maven-plugin.version>
     </properties>
 
 

@@ -6,7 +6,6 @@ import jakarta.persistence.*;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-
 import lombok.*;
 import lombok.experimental.Accessors;
 import org.springframework.boot.Banner;
@@ -46,15 +45,14 @@ public class m2mBidirectional {
             Printer.entity(savePost);
 
             Printer.focus("Retrieving tag from Tag repository");
-            var tagById = testService.findTagById(savePost.tags().stream()
-                    .findFirst()
-                    .map(Tag::id)
-                    .orElseThrow());
+            var tagById = testService.findTagById(
+                    savePost.tags().stream().findFirst().map(Tag::id).orElseThrow());
             Printer.entity(tagById);
 
             // TODO check not working!!!!!!!!!
             Printer.focus("Dropping a Tag");
-            var droppedTag = testService.dropTag(savePost.id(),
+            var droppedTag = testService.dropTag(
+                    savePost.id(),
                     savePost.tags().stream()
                             .filter(tag -> tag.name().equals("Java"))
                             .findFirst()
@@ -68,7 +66,6 @@ public class m2mBidirectional {
 interface PostRepository extends JpaRepository<Post, Long> {
     @EntityGraph(attributePaths = Post_.TAGS)
     Optional<Post> findWithTagsById(long id);
-
 }
 
 @Repository
@@ -87,7 +84,6 @@ class TestService {
         this.postRepository = postRepository;
         this.tagRepository = tagRepository;
     }
-
 
     /**
      * @apiNote 1 INSERT for the post + n INSERT for the tags (if new) + m INSERT for the join table records
@@ -147,11 +143,7 @@ class Post {
 
     @Override
     public String toString() {
-        return "Post{" +
-                "id=" + id +
-                ", title='" + title + '\'' +
-                ", tags=" + tags +
-                '}';
+        return "Post{" + "id=" + id + ", title='" + title + '\'' + ", tags=" + tags + '}';
     }
 }
 
@@ -175,9 +167,6 @@ class Tag {
 
     @Override
     public String toString() {
-        return "Tag{" +
-                "id=" + id +
-                ", name='" + name +
-                '}';
+        return "Tag{" + "id=" + id + ", name='" + name + '}';
     }
 }

@@ -40,7 +40,6 @@ public class o2mParentSide {
             var post = testService.savePostWithCommentsInCommentList();
             Printer.focus("Deleting from List mapping");
             testService.removeCommentFromList(post.id());
-
         };
     }
 
@@ -51,7 +50,6 @@ public class o2mParentSide {
             var post = testService.savePostWithCommentsInCommentListWithOrder();
             Printer.focus("Deleting first element from List mapping with order column");
             testService.removeFirstCommentFromListWithOrder(post.id());
-
         };
     }
 
@@ -62,7 +60,6 @@ public class o2mParentSide {
             var post = testService.savePostWithCommentsInCommentListWithOrder();
             Printer.focus("Deleting last element from List mapping with order column");
             testService.removeLastCommentFromListWithOrder(post.id());
-
         };
     }
 
@@ -73,7 +70,6 @@ public class o2mParentSide {
             var post = testService.savePostWithCommentsInCommentSet();
             Printer.focus("Deleting last element from Set mapping");
             testService.removeLastCommentFromSet(post.id());
-
         };
     }
 }
