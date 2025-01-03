@@ -1,4 +1,4 @@
-package com.fdifrison.entityrelashionship;
+package com.fdifrison;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -6,9 +6,9 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
-public class EntityRelationshipApplication {
+public class App {
 
     public static void main(String[] args) {
-        SpringApplication.run(EntityRelationshipApplication.class, args);
+        SpringApplication.run(App.class, args);
     }
 }

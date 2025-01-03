@@ -1,4 +1,4 @@
-package com.fdifrison.entityrelashionship.configurations;
+package com.fdifrison.configurations;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

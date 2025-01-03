@@ -1,7 +1,7 @@
-package com.fdifrison.entityrelashionship.one2many.unidirectional;
+package com.fdifrison.one2many.unidirectional;
 
-import com.fdifrison.entityrelashionship.configurations.Profiles;
-import com.fdifrison.entityrelashionship.utils.Printer;
+import com.fdifrison.configurations.Profiles;
+import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
 import java.util.*;
 import lombok.AllArgsConstructor;
