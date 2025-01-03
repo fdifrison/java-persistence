@@ -36,7 +36,8 @@ public class o2oMapsId {
     CommandLineRunner runner(TestService testService) {
         return args -> {
             // TODO there is no difference in terms of performance between the join column and the maps id approach,
-            //  however the latter has the potential to give also (indirectly) a bidirectional access from the parent to the
+            //  however the latter has the potential to give also (indirectly) a bidirectional access from the parent to
+            // the
             //  child entity, and to save the space of one useless index for the child primary key
             Printer.focus("Unidirectional mapping with maps id");
             var post = testService.savePost();

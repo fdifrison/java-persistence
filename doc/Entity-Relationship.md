@@ -133,6 +133,7 @@ Usually, the join table is not modelled explicitly but embedded in one of the tw
 annotation
 
 ```java
+
 @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
 @JoinTable(
         name = "post_tag",
@@ -140,3 +141,75 @@ annotation
         inverseJoinColumns = @JoinColumn(name = "tag_id"))
 private Set<Tag> tags = new HashSet<>();
 ```
+
+## Explicit mapping
+
+The join table can also be explicitly mapped into an entity; in this case the relation between the two parent-side
+becomes like a bidirectional `@OneToMany` mapping, and the use of cascade type ALL is possible since the two parent
+entity doesn't speak directly one to another but only through the join table entity acting now as a child to both the
+ends.
+
+The join table can now contain more attributes than merely the two ids; the combined primary key, composed by the two
+ids of the parents entities, id defined as an `@Embeddable`. The join table entity has therefore an `@EmbeddedId` and at
+least two fields with a `@ManyToOne` annotation, pointing to the parents collections and with the `@MapsId` annotation,
+delegating the foreign key reference to the embeddable type.
+
+```java
+
+@Entity
+@Table(name = "post_tag")
+class PostTag {
+
+    public PostTag(Post post, Tag tag) {
+        this.post = post;
+        this.tag = tag;
+        this.id = new PostTagId(post().id(), tag.id());
+    }
+
+    @EmbeddedId
+    private PostTagId id;
+
+    @ManyToOne
+    @MapsId(PostTagId_.POST_ID)
+    private Post post;
+
+    @ManyToOne
+    @MapsId(PostTagId_.TAG_ID)
+    private Tag tag;
+
+}
+
+@Embeddable
+record PostTagId(@Column(name = "post_id")
+                 Long postId,
+                 @Column(name = "tag_id")
+                 Long tagId) {
+}
+```
+
+From the parents side, we now have a collections of the new child entity, and we can use List without incurring in the
+hibernate bag behavior seen in the unidirectional `@OnetoMany` mapping (i.e. we have a single delete statement instead
+of a deleted all of n records where id = my_id and a n-1 insert back). The synchronization methods are again useful on
+the parent side, even if their implementation is a bit more cumbersome since we need to keep in sync both ends of the
+many-to-many association.
+
+```java
+public void addTag(Tag tag) {
+    PostTag postTag = new PostTag(this, tag);
+    tags.add(postTag);
+    tag.posts().add(postTag);
+}
+
+public Post removeTag(Tag tag) {
+    tags.stream().filter(t -> t.post().equals(this) && t.tag().equals(tag))
+            .findFirst()
+            .ifPresent(t -> {
+                tags.remove(t);
+                t.tag().posts().remove(t);
+                t.post(null);
+                t.tag(null);
+            });
+    return this;
+}
+```
+

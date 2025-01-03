@@ -3,11 +3,9 @@ package com.fdifrison.entityrelashionship.many2many.unidirectional;
 import com.fdifrison.entityrelashionship.configurations.Profiles;
 import com.fdifrison.entityrelashionship.utils.Printer;
 import jakarta.persistence.*;
-
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -40,7 +38,7 @@ public class m2mUnidirectional {
     @Order(0)
     @Bean
     CommandLineRunner runner(TestService testService) {
-        return _ -> {
+        return args -> {
             Printer.focus("Inserting a post with tags");
             var post = new Post()
                     .withTitle("First Post")
@@ -50,7 +48,8 @@ public class m2mUnidirectional {
             Printer.entity(savePost);
 
             Printer.focus("Dropping a Tag");
-            var droppedTag = testService.dropTag(savePost.id(),
+            var droppedTag = testService.dropTag(
+                    savePost.id(),
                     savePost.tags().stream()
                             .filter(tag -> tag.name().equals("Java"))
                             .findFirst()
@@ -68,8 +67,7 @@ interface PostRepository extends JpaRepository<Post, Long> {
 }
 
 @Repository
-interface TagRepository extends JpaRepository<Tag, Long> {
-}
+interface TagRepository extends JpaRepository<Tag, Long> {}
 
 @Service
 class TestService {
@@ -80,7 +78,6 @@ class TestService {
         this.postRepository = postRepository;
     }
 
-
     /**
      * @apiNote 1 INSERT for the post + n INSERT for the tags (if new) + m INSERT for the join table records
      * @implNote since the Post entity is holding the relationship, persisting a post will also produce the insert
@@ -89,7 +86,6 @@ class TestService {
     public Post savePost(Post post) {
         return postRepository.save(post);
     }
-
 
     @Transactional
     public Post dropTag(long postId, Tag tag) {

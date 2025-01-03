@@ -5,6 +5,7 @@ import com.fdifrison.entityrelashionship.many2many.bidirectional.Post_;
 import com.fdifrison.entityrelashionship.many2many.bidirectional.Tag_;
 import com.fdifrison.entityrelashionship.utils.Printer;
 import jakarta.persistence.*;
+import java.util.*;
 import lombok.*;
 import lombok.experimental.Accessors;
 import org.hibernate.annotations.NaturalId;
@@ -20,8 +21,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
@@ -47,11 +46,8 @@ public class m2mExplicit {
             Printer.focus("Retrieving Post and remove one tag");
             var droppedTag = testService.dropTag(savedPost.id(), javaTag.id());
             Printer.entity(droppedTag);
-
         };
     }
-
-
 }
 
 @Repository
@@ -59,7 +55,6 @@ interface PostRepository extends JpaRepository<Post, Long> {
     // TODO not required but avoid 2 select instead of 1
     @EntityGraph(attributePaths = {Post_.TAGS + "." + PostTag_.TAG, Post_.TAGS + "." + PostTag_.POST})
     Optional<Post> findWithTagsById(long id);
-
 }
 
 @Repository
@@ -78,7 +73,6 @@ class TestService {
         this.postRepository = postRepository;
         this.tagRepository = tagRepository;
     }
-
 
     @Transactional
     public Post savePostWithTags(Post post, List<Long> tagsId) {
@@ -104,7 +98,6 @@ class TestService {
         var entity = post.removeTag(tag);
         return postRepository.save(entity);
     }
-
 }
 
 @Getter
@@ -128,7 +121,6 @@ class Post {
     //  and the orphan removal without risks
     private List<PostTag> tags = new ArrayList<>();
 
-
     // TODO add and remove utility methods become more complex since they need to synchronize both side of the join
     //  table, nonetheless they are very useful
     public void addTag(Tag tag) {
@@ -138,7 +130,8 @@ class Post {
     }
 
     public Post removeTag(Tag tag) {
-        tags.stream().filter(t -> t.post().equals(this) && t.tag().equals(tag))
+        tags.stream()
+                .filter(t -> t.post().equals(this) && t.tag().equals(tag))
                 .findFirst()
                 .ifPresent(t -> {
                     tags.remove(t);
@@ -151,11 +144,7 @@ class Post {
 
     @Override
     public String toString() {
-        return "Post{" +
-                "id=" + id +
-                ", title='" + title + '\'' +
-                ", tags=" + tags +
-                '}';
+        return "Post{" + "id=" + id + ", title='" + title + '\'' + ", tags=" + tags + '}';
     }
 }
 
@@ -174,7 +163,6 @@ class Tag {
     @NaturalId
     @Column(nullable = false)
     private @With String name;
-
 
     @OneToMany(mappedBy = "tag", cascade = CascadeType.ALL, orphanRemoval = true)
     // TODO the relationship becomes similar to a bidirectional one-to-many and since the two parent entity post and tag
@@ -195,13 +183,9 @@ class Tag {
         return Objects.hash(name);
     }
 
-
     @Override
     public String toString() {
-        return "Tag{" +
-                "id=" + id +
-                ", name='" + name +
-                '}';
+        return "Tag{" + "id=" + id + ", name='" + name + '}';
     }
 }
 
@@ -247,25 +231,18 @@ class PostTag {
 
     @Override
     public String toString() {
-        return "PostTag{" +
-                "id=" + id +
-                ", tag=" + tag.name() +
-                '}';
+        return "PostTag{" + "id=" + id + ", tag=" + tag.name() + '}';
     }
 }
 
 @Embeddable
-record PostTagId(@Column(name = "post_id")
-                 Long postId,
-                 @Column(name = "tag_id")
-                 Long tagId) {
+record PostTagId(@Column(name = "post_id") Long postId, @Column(name = "tag_id") Long tagId) {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         PostTagId that = (PostTagId) o;
-        return Objects.equals(this.postId, that.postId()) &&
-                Objects.equals(this.tagId, that.tagId());
+        return Objects.equals(this.postId, that.postId()) && Objects.equals(this.tagId, that.tagId());
     }
 
     @Override
@@ -275,11 +252,6 @@ record PostTagId(@Column(name = "post_id")
 
     @Override
     public String toString() {
-        return "PostTagId[" +
-                "postId=" + postId + ", " +
-                "tagId=" + tagId + ']';
-
+        return "PostTagId[" + "postId=" + postId + ", " + "tagId=" + tagId + ']';
     }
-
-
 }
