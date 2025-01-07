@@ -2,11 +2,11 @@ version: '3.8'
 services:
   java-persistence:
     image: postgres:latest
-    container_name: java-persistence
+    container_name: jpa-inheritance
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
-      POSTGRES_MULTIPLE_DATABASES: many2one,one2many,one2one,many2many
+      POSTGRES_MULTIPLE_DATABASES: single_table,joined,table_per_class,mapped_superclass
     ports:
       - "5432:5432"
     volumes:
