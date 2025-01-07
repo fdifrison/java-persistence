@@ -1,13 +1,13 @@
 databaseChangeLog:
   - includeAll:
-      path: db/changelog/many2one
-      context: many2one
+      path: db/changelog/single_table
+      context: single_table
   - includeAll:
-      path: db/changelog/one2many
-      context: one2many
+      path: db/changelog/joined
+      context: joined
   - includeAll:
-      path: db/changelog/one2one
-      context: one2one
+      path: db/changelog/table_per_class
+      context: table_per_class
   - includeAll:
-      path: db/changelog/many2many
-      context: many2many
+      path: db/changelog/mapped_superclass
+      context: mapped_superclass

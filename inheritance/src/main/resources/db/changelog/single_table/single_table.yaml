@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - context: single_table
+  - changeSet:
+      id: 0
+      author: giovanni frison
+      changes:
+        - createTable:

@@ -10,4 +10,4 @@ databaseChangeLog:
       context: one2one
   - includeAll:
       path: db/changelog/many2many
-      context: many2many
+      context: single_table
