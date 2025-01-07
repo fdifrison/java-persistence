@@ -83,7 +83,7 @@ class Post {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
     @Column(nullable = false)
     private @With String title;
@@ -101,7 +101,7 @@ class Detail {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
     @CreationTimestamp
     @Column(nullable = false)

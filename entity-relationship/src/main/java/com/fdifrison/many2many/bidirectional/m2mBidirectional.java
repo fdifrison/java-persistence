@@ -49,7 +49,6 @@ public class m2mBidirectional {
                     savePost.tags().stream().findFirst().map(Tag::id).orElseThrow());
             Printer.entity(tagById);
 
-            // TODO check not working!!!!!!!!!
             Printer.focus("Dropping a Tag");
             var droppedTag = testService.dropTag(
                     savePost.id(),
@@ -115,7 +114,7 @@ class Post {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
     @Column(nullable = false)
     private @With String title;
@@ -157,7 +156,7 @@ class Tag {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
     @Column(nullable = false)
     private @With String name;
