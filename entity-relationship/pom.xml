@@ -12,8 +12,13 @@
     <name>entity-relationship</name>
     <description>entity-relationship</description>
 
-
     <dependencies>
+        <dependency>
+            <groupId>com.fdifrison</groupId>
+            <artifactId>common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
