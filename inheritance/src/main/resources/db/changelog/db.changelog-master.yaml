@@ -2,12 +2,12 @@ databaseChangeLog:
   - includeAll:
       path: db/changelog/single_table
       context: single_table
-  - includeAll:
-      path: db/changelog/joined
-      context: joined
-  - includeAll:
-      path: db/changelog/table_per_class
-      context: table_per_class
-  - includeAll:
-      path: db/changelog/mapped_superclass
-      context: mapped_superclass
+#  - includeAll:
+#      path: db/changelog/joined
+#      context: joined
+#  - includeAll:
+#      path: db/changelog/table_per_class
+#      context: table_per_class
+#  - includeAll:
+#      path: db/changelog/mapped_superclass
+#      context: mapped_superclass
