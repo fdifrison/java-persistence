@@ -18,7 +18,6 @@
     <modules>
         <module>entity-relationship</module>
         <module>inheritance</module>
-        <module>common</module>
     </modules>
 
     <properties>
