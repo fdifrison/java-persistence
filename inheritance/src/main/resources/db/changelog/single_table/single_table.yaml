@@ -26,7 +26,7 @@ databaseChangeLog:
                   constraints:
                     primaryKey: true
               - column:
-                  name: dtype  # TODO required for inheritance
+                  name: dtype  # TODO required for single table inheritance
                   type: text
               - column:
                   name: created_on
