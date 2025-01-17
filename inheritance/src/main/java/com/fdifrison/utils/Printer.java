@@ -1,5 +1,7 @@
 package com.fdifrison.utils;
 
+import java.util.List;
+
 public class Printer {
 
     public static void focus() {
@@ -13,4 +15,10 @@ public class Printer {
     public static void entity(Object entity) {
         System.out.println("\nEntity state \n" + entity.toString() + "\n\n");
     }
+
+    public static void entityList(List<?> entity) {
+        System.out.println("\nEntity state \n");
+        entity.forEach(System.out::println);
+    }
+
 }
