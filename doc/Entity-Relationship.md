@@ -1,4 +1,17 @@
-# @ManyToOne
+<!-- TOC -->
+* [`@ManyToOne`](#manytoone)
+  * [bidirectional](#bidirectional)
+* [Unidirectional `@OneToMany`](#unidirectional-onetomany-)
+  * [join table](#join-table)
+    * [List vs Set Collections](#list-vs-set-collections)
+  * [`@JoinColumn`](#joincolumn)
+* [`@OneToOne`](#onetoone)
+  * [unidirectional](#unidirectional)
+  * [bidirectional](#bidirectional-1)
+* [`@ManyToMany`](#manytomany)
+  * [Explicit mapping](#explicit-mapping)
+<!-- TOC -->
+# `@ManyToOne`
 
 The `@ManyToOne` mapping is the most natural way to map a foreign key relationship between a parent and a child entity.
 The annotation is placed on the child entity, usually with a LAZY behavior and optionally with a `@JoinColum` (mandatory
@@ -42,7 +55,8 @@ public void removeComment(Comment comment) {
 In this way, the removal of a comment is efficient since executes only one DELETE statement and remove the reference
 from the Comment object so that it can be garbage collected.
 
-# Unidirectional @OneToMany (DON'T USE IF YOU CAN)
+# Unidirectional `@OneToMany` 
+(DON'T USE IT IF YOU CAN)
 
 Even if uncommon, we might opt to hold a unidirectional reference only on the parent-side of the relationship.
 Its performance depends on the implementation and on the type of collection we implement, but always worse (less
@@ -83,7 +97,7 @@ hibernate will first fire an update statement on the child entity to set the for
 is will issue the delete statement to remove that same child entity. If `nullable=false` we save the first useless
 update statement.
 
-# @OneToOne
+# `@OneToOne`
 
 ## unidirectional
 
@@ -113,7 +127,7 @@ Therefore, is a query like the following executed, n+1 queries are executed!
 List<Post> findPostsWhereTitleIn(@Param("title") String title);
 ```
 
-# @ManyToMany
+# `@ManyToMany`
 
 In a many-to-many relationship, each side of the relation act as a parent-side, while the join table can be considered
 as the child. The association can be either unidirectional or bidirectional, depending on the fact that we might need to
