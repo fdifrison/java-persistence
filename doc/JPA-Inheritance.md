@@ -8,8 +8,10 @@ In general, in a RDBMS, inheritance can only be emulated through table relations
 
 Martin Fowler design patter for RDBMS inheritance:
 
-* **Single Table inheritance**: a single database table is used to represent all classes in a given inheritance hierarchy
-* **Class Table inheritance**: the parent class and each subclass are mapped to separate tables related by the foreign key
+* **Single Table inheritance**: a single database table is used to represent all classes in a given inheritance
+  hierarchy
+* **Class Table inheritance**: the parent class and each subclass are mapped to separate tables related by the foreign
+  key
   on the base class; the subclasses tables contains only the fields that are not in the parent class table.
 * **Concrete Table inheritance**: each table in the hierarchy defines all attributes
 
@@ -19,3 +21,12 @@ JPA inheritance mapping models:
 * `InheritanceType.JOINED`
 * `InheritanceType.TABLE_PER_CLASS`
 * `@MappedSuperclass` (inheritance is available only in the Domain Model without being mirrored in the database)
+
+## Single table inheritance
+
+Pros: query efficiency, since we have one single table to query
+Cons: data integrity; we are not respecting the consistency principle of ACID since we can enforce non-nullability on
+the application level (on the entities) but not on the persistence layer (since a single table represents more than one
+entity there will be fields that are always null for one child entity but not the other, hence nullability can't be
+constrained on the persistence layer). The only alternative is to use DB specifics constrain like CHECK (PostgreSQL) or
+TRIGGER (MySQL) 

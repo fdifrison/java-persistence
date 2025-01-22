@@ -4,13 +4,17 @@ import com.fdifrison.configurations.Profiles;
 import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
 
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import org.hibernate.JDBCException;
+import org.hibernate.Session;
 import org.hibernate.annotations.CreationTimestamp;
 import org.springframework.boot.Banner;
 import org.springframework.boot.CommandLineRunner;
@@ -18,6 +22,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.context.annotation.Bean;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -40,30 +45,60 @@ public class SingleTable {
     CommandLineRunner runner(TestService service) {
         return args -> {
             var board = service.creatBoard(new Board().name("Spring"));
+
+            try {
+                Printer.focus("Adding check constrain");
+                service.addCheckConstrain();
+            } catch (SQLException | JDBCException _) {
+                System.out.println("Check constrain already exists");
+            }
+
+            Printer.focus("Adding check constrain");
+            var wrongPost = new Post();
+            wrongPost.setOwner("fdifrison");
+            wrongPost.setTitle("Java Persistence");
+            wrongPost.setContent(null);
+            wrongPost.setBoard(board);
+            try {
+                service.createPost(wrongPost);
+            } catch (SQLException | DataIntegrityViolationException _) {
+
+            }
+
+
             Printer.focus("Creating topics...");
             var post = service.createPost(board.id());
             var announcement = service.createAnnouncement(board.id());
             Printer.entity(post);
             Printer.entity(announcement);
+
             Printer.focus("Adding statistics");
             service.addStatistics(post.getId());
             service.addStatistics(announcement.getId());
+
             Printer.focus("Performing a polymorphic query to retrieve all topics");
             var boardsTopics = service.getBoardsTopics(board.id());
             Printer.entityList(boardsTopics);
+
             Printer.focus("Finding only posts among topics");
-            var allPosts =  service.getAllPosts();
+            var allPosts = service.getAllPosts();
             Printer.entityList(allPosts);
 
+            Printer.focus("Finding all topics sorted by dtype");
+            var allTopics = service.getAllTopicsSortedByType();
+            Printer.entityList(allTopics);
         };
     }
 }
 
-interface BoardRepository extends JpaRepository<Board, Long> {}
+interface BoardRepository extends JpaRepository<Board, Long> {
+}
 
-interface PostRepository extends JpaRepository<Post, Long> {}
+interface PostRepository extends JpaRepository<Post, Long> {
+}
 
-interface AnnouncementRepository extends JpaRepository<Announcement, Long> {}
+interface AnnouncementRepository extends JpaRepository<Announcement, Long> {
+}
 
 interface TopicRepository extends JpaRepository<Topic, Long> {
 
@@ -74,17 +109,25 @@ interface TopicRepository extends JpaRepository<Topic, Long> {
 
     @EntityGraph(attributePaths = Topic_.BOARD)
     @Query(value = """
+            select t from Topic t order by t.class, t.id desc
+            """)
+    List<Topic> findTopicsSortedByType();
+
+    @EntityGraph(attributePaths = Topic_.BOARD)
+    @Query(value = """
             select p from Post p
             """)
     List<Topic> findAllPosts();
 
 }
 
-interface TopicStatisticsRepository extends JpaRepository<TopicStatistics, Long> {}
+interface TopicStatisticsRepository extends JpaRepository<TopicStatistics, Long> {
+}
 
 @Service
 class TestService {
 
+    private final EntityManager em;
     private final BoardRepository boardRepository;
     private final PostRepository postRepository;
     private final AnnouncementRepository announcementRepository;
@@ -93,11 +136,12 @@ class TestService {
 
 
     TestService(
-            BoardRepository boardRepository,
+            EntityManager em, BoardRepository boardRepository,
             PostRepository postRepository,
             AnnouncementRepository announcementRepository,
             TopicRepository topicRepository,
             TopicStatisticsRepository topicStatisticsRepository) {
+        this.em = em;
         this.boardRepository = boardRepository;
         this.postRepository = postRepository;
         this.announcementRepository = announcementRepository;
@@ -105,10 +149,53 @@ class TestService {
         this.topicStatisticsRepository = topicStatisticsRepository;
     }
 
+    public void addCheckConstrain() throws SQLException {
+        em.unwrap(Session.class).doWork(
+                connection -> {
+                    try (var st = connection.createStatement()) {
+                        st.executeUpdate("""
+                                ALTER TABLE topic
+                                ADD CONSTRAINT post_content_check CHECK
+                                (
+                                    CASE
+                                        WHEN DTYPE = 'Post' THEN
+                                        CASE
+                                           WHEN content IS NOT NULL
+                                           THEN 1
+                                           ELSE 0
+                                           END
+                                        ELSE 1
+                                    END = 1
+                                )
+                                """);
+                        st.executeUpdate("""
+                                ALTER TABLE topic
+                                ADD CONSTRAINT announcement_validUntil_check CHECK
+                                (
+                                    CASE
+                                        WHEN DTYPE = 'Announcement' THEN
+                                        CASE
+                                           WHEN valid_until IS NOT NULL
+                                           THEN 1
+                                           ELSE 0
+                                           END
+                                        ELSE 1
+                                    END = 1
+                                )
+                                """);
+
+                    }
+                }
+        );
+    }
+
+
     public Board creatBoard(Board board) {
         return boardRepository.save(board);
     }
 
+    @Transactional
+    // TODO @Transactional not required since board eagerly fetch topics, but better to have it
     public Post createPost(long boardId) {
         var board = boardRepository.findById(boardId).orElseThrow();
         var post = new Post();
@@ -119,6 +206,12 @@ class TestService {
         return postRepository.save(post);
     }
 
+    public void createPost(Post post) throws SQLException {
+        postRepository.save(post);
+    }
+
+    @Transactional
+    // TODO @Transactional not required since board eagerly fetch topics, but better to have it
     public Announcement createAnnouncement(long boardId) {
         var board = boardRepository.findById(boardId).orElseThrow();
         var announcement = new Announcement();
@@ -150,9 +243,16 @@ class TestService {
     /**
      * @implNote Select all Topics row where dType=Post
      */
-    @Transactional
     public List<Topic> getAllPosts() {
         return topicRepository.findAllPosts();
+    }
+
+    /**
+     * @implNote ordering by the entity.class make it possible for hibernate to use the dtype and distinguish between
+     * Posts and Announcements
+     */
+    public List<Topic> getAllTopicsSortedByType() {
+        return topicRepository.findTopicsSortedByType();
     }
 
 

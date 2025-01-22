@@ -67,5 +67,3 @@ databaseChangeLog:
                   name: views
                   type: bigint
 
-
-
