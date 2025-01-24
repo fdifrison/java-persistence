@@ -3,13 +3,6 @@ package com.fdifrison.singletable;
 import com.fdifrison.configurations.Profiles;
 import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
-
-import java.sql.SQLException;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -29,6 +22,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.sql.SQLException;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
@@ -54,11 +53,11 @@ public class SingleTable {
             }
 
             Printer.focus("Trying to insert a post that violets the constrain");
-            var wrongPost = new Post();
-            wrongPost.setOwner("fdifrison");
-            wrongPost.setTitle("Java Persistence");
-            wrongPost.setContent(null);
-            wrongPost.setBoard(board);
+            var wrongPost = new Post()
+                    .setOwner("fdifrison")
+                    .setTitle("Java Persistence")
+                    .setContent(null)
+                    .setBoard(board);
             try {
                 service.createPost(wrongPost);
             } catch (SQLException | DataIntegrityViolationException _) {
@@ -107,6 +106,10 @@ interface TopicRepository extends JpaRepository<Topic, Long> {
             """)
     List<Topic> findTopicsByBoard(@Param("board") Board board);
 
+    /**
+     * @implNote ordering by the entity.class make it possible for hibernate to use the dtype and distinguish between
+     * Posts and Announcements
+     */
     @EntityGraph(attributePaths = Topic_.BOARD)
     @Query(value = """
             select t from Topic t order by t.class, t.id desc
@@ -194,15 +197,18 @@ class TestService {
         return boardRepository.save(board);
     }
 
+    /**
+     * @apiNote 1 SELECT + 1 INSERT in the Topic table with the dtype inferred as Post
+     */
     @Transactional
     // TODO @Transactional not required since board eagerly fetch topics, but better to have it
     public Post createPost(long boardId) {
         var board = boardRepository.findById(boardId).orElseThrow();
-        var post = new Post();
-        post.setOwner("fdifrison");
-        post.setTitle("Java Persistence");
-        post.setContent("Learning from Vlad");
-        post.setBoard(board);
+        var post = new Post()
+                .setOwner("fdifrison")
+                .setTitle("Java Persistence")
+                .setContent("Learning from Vlad")
+                .setBoard(board);
         return postRepository.save(post);
     }
 
@@ -210,15 +216,18 @@ class TestService {
         postRepository.save(post);
     }
 
+    /**
+     * @apiNote 1 SELECT + 1 INSERT in the Topic table with the dtype inferred as Announcement
+     */
     @Transactional
     // TODO @Transactional not required since board eagerly fetch topics, but better to have it
     public Announcement createAnnouncement(long boardId) {
         var board = boardRepository.findById(boardId).orElseThrow();
-        var announcement = new Announcement();
-        announcement.setOwner("fdifrison");
-        announcement.setTitle("Time to study!");
-        announcement.setValidUntil(Instant.now().plus(Duration.ofDays(1)));
-        announcement.setBoard(board);
+        var announcement = new Announcement()
+                .setOwner("fdifrison")
+                .setTitle("Time to study!")
+                .setValidUntil(Instant.now().plus(Duration.ofDays(1)))
+                .setBoard(board);
         return announcementRepository.save(announcement);
     }
 
@@ -226,7 +235,7 @@ class TestService {
     @Transactional
     public void addStatistics(long topicId) {
         var topic = topicRepository.findById(topicId).orElseThrow();
-        var stats = new TopicStatistics().topic(topic);
+        var stats = new TopicStatistics().setTopic(topic);
         stats.incrementViews();
         topicStatisticsRepository.save(stats);
     }
@@ -241,7 +250,7 @@ class TestService {
     }
 
     /**
-     * @implNote Select all Topics row where dType=Post
+     * @apiNote Select all Topics row where dType=Post
      */
     public List<Topic> getAllPosts() {
         return topicRepository.findAllPosts();
@@ -292,7 +301,7 @@ class Board {
 // TODO @DiscriminatorColumn default to type string and name dtype while thr @DiscriminatorValue if not specified is
 //  equal to the class name (if we don't use the default setting on the discriminator column, the discriminator values
 //  becomes mandatory on all the entities child of the single table).
-class Topic {
+class Topic<T extends Topic<T>> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -306,12 +315,35 @@ class Topic {
     @ManyToOne(fetch = FetchType.LAZY)
     private Board board;
 
+    public T setTitle(String title) {
+        this.title = title;
+        return (T) this;
+    }
+
+    public T setOwner(String owner) {
+        this.owner = owner;
+        return (T) this;
+    }
+
+
+    public T setCreatedOn(Instant createdOn) {
+        this.createdOn = createdOn;
+        return (T) this;
+    }
+
+
+    public T setBoard(Board board) {
+        this.board = board;
+        return (T) this;
+    }
+
 }
 
 @Setter
 @Getter
 @Entity
-class Post extends Topic {
+@Accessors(fluent = true, chain = true)
+class Post extends Topic<Post> {
     private String content;
 
     @Override
@@ -325,12 +357,18 @@ class Post extends Topic {
                 ", content='" + content + '\'' +
                 '}';
     }
+
+    public Post setContent(String content) {
+        this.content = content;
+        return this;
+    }
 }
 
 @Getter
 @Setter
 @Entity
-class Announcement extends Topic {
+@Accessors(chain = true)
+class Announcement extends Topic<Announcement> {
     private Instant validUntil;
 
     @Override
@@ -348,7 +386,7 @@ class Announcement extends Topic {
 
 @Getter
 @Setter
-@Accessors(fluent = true, chain = true)
+@Accessors(chain = true)
 @Entity
 @Table
 class TopicStatistics {
