@@ -29,4 +29,25 @@ Cons: data integrity; we are not respecting the consistency principle of ACID si
 the application level (on the entities) but not on the persistence layer (since a single table represents more than one
 entity there will be fields that are always null for one child entity but not the other, hence nullability can't be
 constrained on the persistence layer). The only alternative is to use DB specifics constrain like CHECK (PostgreSQL) or
-TRIGGER (MySQL) 
+TRIGGER (MySQL)
+
+### `@DiscriminatorColumn` and `@DiscriminatorValue`
+
+When using single table inheritance, by default JPA use a discriminator column of type `String` called `DTYPE` to
+differentiate the child entities of the single table with a discriminator value equal to the entity classes name.
+However, this is not the only option since we can choose to use a custom string or opt to a char or an int. We only need
+to annotate the parent entity with the `@DiscriminatorColumn`annotation specifying the type and the name of the column,
+and then annotates all the child entities with the `@DiscriminatorValue`.
+
+```java
+
+@DiscriminatorColumn(
+        discriminatorType = DiscriminatorType.STRING,
+        name = "topic_type_id",
+        columnDefinition = "VARCHAR(3)"
+)
+@DiscriminatorValue("TPC")
+public class Topic {
+    // ....
+}
+```

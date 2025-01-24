@@ -53,7 +53,7 @@ public class SingleTable {
                 System.out.println("Check constrain already exists");
             }
 
-            Printer.focus("Adding check constrain");
+            Printer.focus("Trying to insert a post that violets the constrain");
             var wrongPost = new Post();
             wrongPost.setOwner("fdifrison");
             wrongPost.setTitle("Java Persistence");
@@ -289,6 +289,9 @@ class Board {
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE) // default inheritance type
 // TODO we are using single table inheritance, meaning that the Topic table is used to represents all its polymorphic
 //  representations (Post and Announcement); this require the Topic to have the fields required by both the sub-entities
+// TODO @DiscriminatorColumn default to type string and name dtype while thr @DiscriminatorValue if not specified is
+//  equal to the class name (if we don't use the default setting on the discriminator column, the discriminator values
+//  becomes mandatory on all the entities child of the single table).
 class Topic {
 
     @Id
