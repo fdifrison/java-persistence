@@ -51,3 +51,8 @@ public class Topic {
     // ....
 }
 ```
+
+## Joined inheritance
+
+In the joined inheritance, the child entities have an explicit table that contains their specific properties while the
+common attributes are defined in the parent table

@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: single_table # must match the active profile specified in each Main
+    active: joined # must match the active profile specified in each Main
   liquibase:
     contexts: ${spring.profiles.active}
   datasource:
@@ -22,7 +22,7 @@ log:
 
 logging:
   level:
-    liquibase: off
+    liquibase: info
     # shows transactions info
 
     org:
