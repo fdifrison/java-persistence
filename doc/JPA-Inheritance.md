@@ -55,4 +55,6 @@ public class Topic {
 ## Joined inheritance
 
 In the joined inheritance, the child entities have an explicit table that contains their specific properties while the
-common attributes are defined in the parent table
+common attributes are defined in the parent table; child and parent entity share the same id column.
+As a direct consequence, an insert of child entity requires the execution of two insert statements, one for the parent
+and one for the child entity.
