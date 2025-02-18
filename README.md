@@ -5,7 +5,7 @@ following Vlad Mihalcea courses https://vladmihalcea.com/courses/ and blog posts
 
 ## Organization
 
-- _**doc**_ folder contains theory summaries on the topics covered in the courses and blog posts
+- [doc](doc/Java_Persistence_Theory.md) contains a summary of the theory concepts behind each course section
 - _**entity-relationship**_ contains tests on the best and worst practices to code entities mapping.
 - _**inheritance**_ how and when to use polymorphism in the persistence layer (reads single-table-inheritance)
 
