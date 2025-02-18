@@ -27,6 +27,7 @@ JPA inheritance mapping models:
 ![](./images/inheritance/single-table.png)
 
 Pros: query efficiency, since we have one single table to query
+
 Cons: data integrity; we are not respecting the consistency principle of ACID since we can enforce non-nullability on
 the application level (on the entities) but not on the persistence layer (since a single table represents more than one
 entity there will be fields that are always null for one child entity but not the other, hence nullability can't be
@@ -59,6 +60,7 @@ public class Topic {
 ![](./images/inheritance/join-table.png)
 
 Pros: Explicit representation of the child entities and consistency in nullability
+
 Cons: Expensive polymorphic queries due to the number of join
 
 In the joined inheritance, the child entities have an explicit table that contains their specific properties while the
@@ -70,3 +72,20 @@ inheritance allows for consistency since we can respect nullability in subclasse
 persistence layer. Polymorphic queries are also more expensive since hibernate needs to resolve all the possible
 subclasses of the parent entity, leading to N + 1 joins where N is the number of subclasses, leading to a suboptimal
 execution plan.
+
+## Table per class
+
+![](./images/inheritance/table-per-class.png)
+
+N.B. Identity generation strategy is not allowed since it can't guarantee unique identifier between parent and children
+entities and this will generate conflicts in polymorphic queries which needs a way to provide unique results
+
+Pros: Write operation are faster since we are inserting only once in the specific subclass
+
+Cons: Polymorphic queries use hibernate `UNION ALL` in inner queries and therefore are very inefficient; besides, not
+all hibernates dialect support UNION ALL and fall back to UNION which adds a sorting phase to eliminate duplicates,
+something that is redundant since polymorphic queries cannot contain duplicates since the entity identifier and the
+discriminator column provides unique results in the inheritance tree.
+
+In the table per class inheritance, the child entities contain all the fields that are shared with the parent entity
+plus their specifics ones. There is no foreign key neither between parent and children.

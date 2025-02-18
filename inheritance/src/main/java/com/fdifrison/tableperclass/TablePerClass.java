@@ -1,6 +1,7 @@
-package com.fdifrison.joined;
+package com.fdifrison.tableperclass;
 
 import com.fdifrison.configurations.Profiles;
+import com.fdifrison.joined.Topic_;
 import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -28,18 +29,18 @@ import java.util.Optional;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
-public class Joined {
+public class TablePerClass {
 
     public static void main(String[] args) {
-        new SpringApplicationBuilder(Joined.class)
-                .profiles(Profiles.Active.joined.name())
+        new SpringApplicationBuilder(TablePerClass.class)
+                .profiles(Profiles.Active.table_per_class.name())
                 .bannerMode(Banner.Mode.CONSOLE)
                 .run(args);
     }
 
     @Bean
     CommandLineRunner runner(TestService service) {
-        return args -> {
+        return _ -> {
             var board = service.creatBoard(new Board().name("Spring"));
 
             Printer.focus("Creating topics...");
@@ -77,6 +78,7 @@ interface AnnouncementRepository extends JpaRepository<Topic<Announcement>, Long
 }
 
 interface TopicRepository extends JpaRepository<Topic, Long> {
+
 
     @EntityGraph(attributePaths = Topic_.BOARD)
     @Query(value = """
@@ -136,7 +138,7 @@ class TestService {
     }
 
     /**
-     * @apiNote 1 INSERT for the parent table topic + 1 INSERT for the child table post
+     * @apiNote only 1 INSERT for the child table post
      */
     private Post createPost(Post post) {
         return postRepository.save(post);
@@ -155,7 +157,7 @@ class TestService {
     }
 
     /**
-     * @apiNote 1 INSERT for the parent table topic + 1 INSERT for the child table announcement
+     * @apiNote only 1 INSERT for the child table announcement
      */
     private Announcement createAnnouncement(Announcement announcement) {
         return announcementRepository.save(announcement);
@@ -172,14 +174,15 @@ class TestService {
 
     /**
      * @implNote This is a polymorphic query since it return both the Topic children (post and announcement)
-     * @apiNote Hibernate needs to have the fully resolved entity, hence it needs to perform a left join with both the
-     * child table
+     * @apiNote Hibernate performs an inner join selecting all the rows from both parent and children entity using a
+     * UNION ALL which is inefficient
      */
     @Transactional
     public List<Topic> getBoardsTopics(long boardId) {
         var board = boardRepository.findBoardByIdFull(boardId).orElseThrow();
         return board.topics();
     }
+
 
 }
 
@@ -210,11 +213,12 @@ class Board {
 @Getter
 @Entity
 @Table
-@Inheritance(strategy = InheritanceType.JOINED) // default inheritance type
+@SequenceGenerator(name = "topic_seq", sequenceName = "topic_id_seq")
+@Inheritance(strategy = InheritanceType.TABLE_PER_CLASS) // default inheritance type
 class Topic<T extends Topic<T>> {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "topic_seq")
     private Long id;
     private String title;
     private String owner;
@@ -307,13 +311,13 @@ class Announcement extends Topic<Announcement> {
 class TopicStatistics {
 
     @Id
-    private Long topicId;
+    private Long id;
 
     @OneToOne(fetch = FetchType.LAZY)
     @MapsId
     // TODO the primary key is shared with the parent table topic but its not foreign key to the child tables, even
     //  if the value is the same
-    @JoinColumn(name = TopicStatistics_.TOPIC_ID)
+    @JoinColumn(name = TopicStatistics_.ID)
     // TODO statistics can be associated to both post and announcements
     private Topic topic;
 
@@ -326,7 +330,7 @@ class TopicStatistics {
     @Override
     public String toString() {
         return "TopicStatistics{" +
-                "topicId=" + topicId +
+                "topicId=" + id +
                 ", topic=" + topic +
                 ", views=" + views +
                 '}';
