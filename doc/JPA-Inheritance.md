@@ -24,6 +24,8 @@ JPA inheritance mapping models:
 
 ## Single table inheritance
 
+![](./images/inheritance/single-table.png)
+
 Pros: query efficiency, since we have one single table to query
 Cons: data integrity; we are not respecting the consistency principle of ACID since we can enforce non-nullability on
 the application level (on the entities) but not on the persistence layer (since a single table represents more than one
@@ -54,7 +56,17 @@ public class Topic {
 
 ## Joined inheritance
 
+![](./images/inheritance/join-table.png)
+
+Pros: Explicit representation of the child entities and consistency in nullability
+Cons: Expensive polymorphic queries due to the number of join
+
 In the joined inheritance, the child entities have an explicit table that contains their specific properties while the
 common attributes are defined in the parent table; child and parent entity share the same id column.
 As a direct consequence, an insert of child entity requires the execution of two insert statements, one for the parent
-and one for the child entity.
+and one for the child entity. While in single inheritance we have a single index (a single pkey) shared between parent
+and child entities, the explicit child table representation requires the presence of more indexes. In contrast, joined
+inheritance allows for consistency since we can respect nullability in subclasses both on the application and on the
+persistence layer. Polymorphic queries are also more expensive since hibernate needs to resolve all the possible
+subclasses of the parent entity, leading to N + 1 joins where N is the number of subclasses, leading to a suboptimal
+execution plan.
