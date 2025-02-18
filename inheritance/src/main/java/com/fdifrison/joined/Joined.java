@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
@@ -51,22 +52,22 @@ public class Joined {
             service.addStatistics(post.getId());
             service.addStatistics(announcement.getId());
 
-            Printer.focus("Performing a polymorphic query to retrieve all topics");
+            Printer.focus("Performing a polymorphic query to retrieve all topics from a board");
             var boardsTopics = service.getBoardsTopics(board.id());
             Printer.entityList(boardsTopics);
-//
-//            Printer.focus("Finding only posts among topics");
-//            var allPosts = service.getAllPosts();
-//            Printer.entityList(allPosts);
-//
-//            Printer.focus("Finding all topics sorted by dtype");
-//            var allTopics = service.getAllTopicsSortedByType();
-//            Printer.entityList(allTopics);
+
         };
     }
 }
 
 interface BoardRepository extends JpaRepository<Board, Long> {
+
+
+    @Query(value = """
+            select b from Board b join fetch b.topics where b.id = :id
+            """)
+    Optional<Board> findBoardByIdFull(@Param("id") Long id);
+
 }
 
 interface PostRepository extends JpaRepository<Topic<Post>, Long> {
@@ -181,8 +182,8 @@ class TestService {
      */
     @Transactional
     public List<Topic> getBoardsTopics(long boardId) {
-        var board = boardRepository.findById(boardId).orElseThrow();
-        return topicRepository.findTopicsByBoard(board);
+        var board = boardRepository.findBoardByIdFull(boardId).orElseThrow();
+        return board.topics();
     }
 
     /**
@@ -268,9 +269,11 @@ class Topic<T extends Topic<T>> {
 
 }
 
+
 @Getter
 @Entity
 @Table
+// TODO no inheritance strategy is required on the child entities since they inherit from the parent class
 class Post extends Topic<Post> {
     private String content;
 
@@ -295,6 +298,7 @@ class Post extends Topic<Post> {
 @Getter
 @Entity
 @Table
+// TODO no inheritance strategy is required on the child entities since they inherit from the parent class
 class Announcement extends Topic<Announcement> {
     private Instant validUntil;
 
