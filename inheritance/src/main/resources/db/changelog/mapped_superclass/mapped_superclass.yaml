@@ -1,0 +1,110 @@
+databaseChangeLog:
+  - context: mapped_superclass
+  - changeSet:
+      id: 0
+      author: giovanni frison
+      changes:
+        - createTable:
+            tableName: board
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: name
+                  type: text
+        - createTable:
+            tableName: post
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: created_on
+                  type: timestamp with timezone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: owner
+                  type: text
+              - column:
+                  name: title
+                  type: text
+              - column:
+                  name: board_id
+                  type: bigint
+                  constraints:
+                    referencedTableName: board
+                    referencedColumnNames: id
+                    foreignKeyName: post_board_id
+              - column:
+                  name: content
+                  type: text
+        - createTable:
+            tableName: announcement
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: created_on
+                  type: timestamp with timezone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: owner
+                  type: text
+              - column:
+                  name: title
+                  type: text
+              - column:
+                  name: board_id
+                  type: bigint
+                  constraints:
+                    referencedTableName: board
+                    referencedColumnNames: id
+                    foreignKeyName: announcement_board_id
+              - column:
+                  name: valid_until
+                  type: timestamp with time zone
+        - createTable:
+            tableName: post_statistics
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+                    referencedTableName: post
+                    referencedColumnNames: id
+                    foreignKeyName: post_statistic_post_id
+              - column:
+                  name: views
+                  type: bigint
+        - createTable:
+            tableName: announcement_statistics
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+                    referencedTableName: announcement
+                    referencedColumnNames: id
+                    foreignKeyName: announcement_statistic_announcement_id
+              - column:
+                  name: views
+                  type: bigint
+
+
+
+

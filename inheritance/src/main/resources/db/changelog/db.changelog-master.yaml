@@ -8,6 +8,6 @@ databaseChangeLog:
   - includeAll:
       path: db/changelog/table_per_class
       context: table_per_class
-#  - includeAll:
-#      path: db/changelog/mapped_superclass
-#      context: mapped_superclass
+  - includeAll:
+      path: db/changelog/mapped_superclass
+      context: mapped_superclass

@@ -3,6 +3,11 @@ package com.fdifrison.singletable;
 import com.fdifrison.configurations.Profiles;
 import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
+import java.sql.SQLException;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -23,12 +28,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.SQLException;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-
 @SpringBootApplication
 @ConfigurationPropertiesScan
 public class SingleTable {
@@ -48,7 +47,7 @@ public class SingleTable {
             try {
                 Printer.focus("Adding check constrain");
                 service.addCheckConstrain();
-            } catch (SQLException | JDBCException _) {
+            } catch (SQLException | JDBCException ignored) {
                 System.out.println("Check constrain already exists");
             }
 
@@ -60,10 +59,9 @@ public class SingleTable {
                     .setBoard(board);
             try {
                 service.createPost(wrongPost);
-            } catch (SQLException | DataIntegrityViolationException _) {
+            } catch (SQLException | DataIntegrityViolationException ignored) {
 
             }
-
 
             Printer.focus("Creating topics...");
             var post = service.createPost(board.id());
@@ -90,14 +88,11 @@ public class SingleTable {
     }
 }
 
-interface BoardRepository extends JpaRepository<Board, Long> {
-}
+interface BoardRepository extends JpaRepository<Board, Long> {}
 
-interface PostRepository extends JpaRepository<Post, Long> {
-}
+interface PostRepository extends JpaRepository<Post, Long> {}
 
-interface AnnouncementRepository extends JpaRepository<Announcement, Long> {
-}
+interface AnnouncementRepository extends JpaRepository<Announcement, Long> {}
 
 interface TopicRepository extends JpaRepository<Topic, Long> {
 
@@ -121,11 +116,9 @@ interface TopicRepository extends JpaRepository<Topic, Long> {
             select p from Post p
             """)
     List<Topic> findAllPosts();
-
 }
 
-interface TopicStatisticsRepository extends JpaRepository<TopicStatistics, Long> {
-}
+interface TopicStatisticsRepository extends JpaRepository<TopicStatistics, Long> {}
 
 @Service
 class TestService {
@@ -137,9 +130,9 @@ class TestService {
     private final TopicRepository topicRepository;
     private final TopicStatisticsRepository topicStatisticsRepository;
 
-
     TestService(
-            EntityManager em, BoardRepository boardRepository,
+            EntityManager em,
+            BoardRepository boardRepository,
             PostRepository postRepository,
             AnnouncementRepository announcementRepository,
             TopicRepository topicRepository,
@@ -153,10 +146,10 @@ class TestService {
     }
 
     public void addCheckConstrain() throws SQLException {
-        em.unwrap(Session.class).doWork(
-                connection -> {
-                    try (var st = connection.createStatement()) {
-                        st.executeUpdate("""
+        em.unwrap(Session.class).doWork(connection -> {
+            try (var st = connection.createStatement()) {
+                st.executeUpdate(
+                        """
                                 ALTER TABLE topic
                                 ADD CONSTRAINT post_content_check CHECK
                                 (
@@ -171,7 +164,8 @@ class TestService {
                                     END = 1
                                 )
                                 """);
-                        st.executeUpdate("""
+                st.executeUpdate(
+                        """
                                 ALTER TABLE topic
                                 ADD CONSTRAINT announcement_validUntil_check CHECK
                                 (
@@ -186,12 +180,9 @@ class TestService {
                                     END = 1
                                 )
                                 """);
-
-                    }
-                }
-        );
+            }
+        });
     }
-
 
     public Board creatBoard(Board board) {
         return boardRepository.save(board);
@@ -231,7 +222,6 @@ class TestService {
         return announcementRepository.save(announcement);
     }
 
-
     @Transactional
     public void addStatistics(long topicId) {
         var topic = topicRepository.findById(topicId).orElseThrow();
@@ -263,8 +253,6 @@ class TestService {
     public List<Topic> getAllTopicsSortedByType() {
         return topicRepository.findTopicsSortedByType();
     }
-
-
 }
 
 @Getter
@@ -285,9 +273,7 @@ class Board {
 
     @Override
     public String toString() {
-        return "Board{" +
-                "name='" + name + '\'' +
-                '}';
+        return "Board{" + "name='" + name + '\'' + '}';
     }
 }
 
@@ -306,6 +292,7 @@ class Topic<T extends Topic<T>> {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String title;
     private String owner;
 
@@ -325,18 +312,15 @@ class Topic<T extends Topic<T>> {
         return (T) this;
     }
 
-
     public T setCreatedOn(Instant createdOn) {
         this.createdOn = createdOn;
         return (T) this;
     }
 
-
     public T setBoard(Board board) {
         this.board = board;
         return (T) this;
     }
-
 }
 
 @Setter
@@ -348,14 +332,13 @@ class Post extends Topic<Post> {
 
     @Override
     public String toString() {
-        return "Post{" +
-                "id=" + super.getId() +
-                ", title='" + super.getTitle() + '\'' +
-                ", owner='" + super.getOwner() + '\'' +
-                ", createdOn=" + super.getCreatedOn() +
-                ", board=" + super.getBoard() +
-                ", content='" + content + '\'' +
-                '}';
+        return "Post{" + "id="
+                + super.getId() + ", title='"
+                + super.getTitle() + '\'' + ", owner='"
+                + super.getOwner() + '\'' + ", createdOn="
+                + super.getCreatedOn() + ", board="
+                + super.getBoard() + ", content='"
+                + content + '\'' + '}';
     }
 
     public Post setContent(String content) {
@@ -373,14 +356,13 @@ class Announcement extends Topic<Announcement> {
 
     @Override
     public String toString() {
-        return "Announcement{" +
-                "id=" + super.getId() +
-                ", title='" + super.getTitle() + '\'' +
-                ", owner='" + super.getOwner() + '\'' +
-                ", createdOn=" + super.getCreatedOn() +
-                ", board=" + super.getBoard() +
-                ", validUntil=" + validUntil +
-                '}';
+        return "Announcement{" + "id="
+                + super.getId() + ", title='"
+                + super.getTitle() + '\'' + ", owner='"
+                + super.getOwner() + '\'' + ", createdOn="
+                + super.getCreatedOn() + ", board="
+                + super.getBoard() + ", validUntil="
+                + validUntil + '}';
     }
 }
 
@@ -407,10 +389,6 @@ class TopicStatistics {
 
     @Override
     public String toString() {
-        return "TopicStatistics{" +
-                "topicId=" + topicId +
-                ", topic=" + topic +
-                ", views=" + views +
-                '}';
+        return "TopicStatistics{" + "topicId=" + topicId + ", topic=" + topic + ", views=" + views + '}';
     }
 }

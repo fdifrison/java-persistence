@@ -4,6 +4,11 @@ import com.fdifrison.configurations.Profiles;
 import com.fdifrison.joined.Topic_;
 import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -21,12 +26,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
 @SpringBootApplication
 @ConfigurationPropertiesScan
 public class TablePerClass {
@@ -40,7 +39,7 @@ public class TablePerClass {
 
     @Bean
     CommandLineRunner runner(TestService service) {
-        return _ -> {
+        return args -> {
             var board = service.creatBoard(new Board().name("Spring"));
 
             Printer.focus("Creating topics...");
@@ -56,29 +55,23 @@ public class TablePerClass {
             Printer.focus("Performing a polymorphic query to retrieve all topics from a board");
             var boardsTopics = service.getBoardsTopics(board.id());
             Printer.entityList(boardsTopics);
-
         };
     }
 }
 
 interface BoardRepository extends JpaRepository<Board, Long> {
 
-
     @Query(value = """
             select b from Board b join fetch b.topics where b.id = :id
             """)
     Optional<Board> findBoardByIdFull(@Param("id") Long id);
-
 }
 
-interface PostRepository extends JpaRepository<Topic<Post>, Long> {
-}
+interface PostRepository extends JpaRepository<Topic<Post>, Long> {}
 
-interface AnnouncementRepository extends JpaRepository<Topic<Announcement>, Long> {
-}
+interface AnnouncementRepository extends JpaRepository<Topic<Announcement>, Long> {}
 
 interface TopicRepository extends JpaRepository<Topic, Long> {
-
 
     @EntityGraph(attributePaths = Topic_.BOARD)
     @Query(value = """
@@ -91,11 +84,9 @@ interface TopicRepository extends JpaRepository<Topic, Long> {
             select p from Post p
             """)
     List<Topic<Post>> findAllPosts();
-
 }
 
-interface TopicStatisticsRepository extends JpaRepository<TopicStatistics, Long> {
-}
+interface TopicStatisticsRepository extends JpaRepository<TopicStatistics, Long> {}
 
 @Service
 class TestService {
@@ -105,7 +96,6 @@ class TestService {
     private final AnnouncementRepository announcementRepository;
     private final TopicRepository topicRepository;
     private final TopicStatisticsRepository topicStatisticsRepository;
-
 
     TestService(
             BoardRepository boardRepository,
@@ -119,7 +109,6 @@ class TestService {
         this.topicRepository = topicRepository;
         this.topicStatisticsRepository = topicStatisticsRepository;
     }
-
 
     public Board creatBoard(Board board) {
         return boardRepository.save(board);
@@ -163,7 +152,6 @@ class TestService {
         return announcementRepository.save(announcement);
     }
 
-
     @Transactional
     public void addStatistics(long topicId) {
         var topic = topicRepository.findById(topicId).orElseThrow();
@@ -182,8 +170,6 @@ class TestService {
         var board = boardRepository.findBoardByIdFull(boardId).orElseThrow();
         return board.topics();
     }
-
-
 }
 
 @Getter
@@ -204,9 +190,7 @@ class Board {
 
     @Override
     public String toString() {
-        return "Board{" +
-                "name='" + name + '\'' +
-                '}';
+        return "Board{" + "name='" + name + '\'' + '}';
     }
 }
 
@@ -220,6 +204,7 @@ class Topic<T extends Topic<T>> {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "topic_seq")
     private Long id;
+
     private String title;
     private String owner;
 
@@ -244,14 +229,11 @@ class Topic<T extends Topic<T>> {
         return (T) this;
     }
 
-
     public T setBoard(Board board) {
         this.board = board;
         return (T) this;
     }
-
 }
-
 
 @Getter
 @Entity
@@ -262,14 +244,13 @@ class Post extends Topic<Post> {
 
     @Override
     public String toString() {
-        return "Post{" +
-                "id=" + super.getId() +
-                ", title='" + super.getTitle() + '\'' +
-                ", owner='" + super.getOwner() + '\'' +
-                ", createdOn=" + super.getCreatedOn() +
-                ", board=" + super.getBoard() +
-                ", content='" + content + '\'' +
-                '}';
+        return "Post{" + "id="
+                + super.getId() + ", title='"
+                + super.getTitle() + '\'' + ", owner='"
+                + super.getOwner() + '\'' + ", createdOn="
+                + super.getCreatedOn() + ", board="
+                + super.getBoard() + ", content='"
+                + content + '\'' + '}';
     }
 
     public Post setContent(String content) {
@@ -287,14 +268,13 @@ class Announcement extends Topic<Announcement> {
 
     @Override
     public String toString() {
-        return "Announcement{" +
-                "id=" + super.getId() +
-                ", title='" + super.getTitle() + '\'' +
-                ", owner='" + super.getOwner() + '\'' +
-                ", createdOn=" + super.getCreatedOn() +
-                ", board=" + super.getBoard() +
-                ", validUntil=" + validUntil +
-                '}';
+        return "Announcement{" + "id="
+                + super.getId() + ", title='"
+                + super.getTitle() + '\'' + ", owner='"
+                + super.getOwner() + '\'' + ", createdOn="
+                + super.getCreatedOn() + ", board="
+                + super.getBoard() + ", validUntil="
+                + validUntil + '}';
     }
 
     public Announcement setValidUntil(Instant validUntil) {
@@ -329,10 +309,6 @@ class TopicStatistics {
 
     @Override
     public String toString() {
-        return "TopicStatistics{" +
-                "topicId=" + id +
-                ", topic=" + topic +
-                ", views=" + views +
-                '}';
+        return "TopicStatistics{" + "topicId=" + id + ", topic=" + topic + ", views=" + views + '}';
     }
 }
