@@ -89,3 +89,17 @@ discriminator column provides unique results in the inheritance tree.
 
 In the table per class inheritance, the child entities contain all the fields that are shared with the parent entity
 plus their specifics ones. There is no foreign key neither between parent and children.
+
+## `@MappedSuperclass`
+
+![](./images/inheritance/mapped.png)
+
+Pros: Efficient read and write operations
+
+Cons: No polymorphic queries or associations since there is no dedicated table for the parent class that now lives only
+at the application level annotated with `@MappedSuperclass`
+
+Using the `@MappedSuperclass` inheritance strategy, the persistence layer is represented only by the concrete
+representations of the child entities. The parent entity is modeled for convenience only at the application level as
+abstract class and owing the fields common to every member of the inheritance tree. Hence, no polymorphic queries are
+possible, since the inheritance hierarchy exist only at the application level.

@@ -1,12 +1,10 @@
-package com.fdifrison.joined;
+package com.fdifrison.mapped_superclass;
 
 import com.fdifrison.configurations.Profiles;
 import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,18 +18,16 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
-public class Joined {
+public class MappedSuperclass {
 
     public static void main(String[] args) {
-        new SpringApplicationBuilder(Joined.class)
-                .profiles(Profiles.Active.joined.name())
+        new SpringApplicationBuilder(MappedSuperclass.class)
+                .profiles(Profiles.Active.mapped_superclass.name())
                 .bannerMode(Banner.Mode.CONSOLE)
                 .run(args);
     }
@@ -47,45 +43,24 @@ public class Joined {
             Printer.entity(post);
             Printer.entity(announcement);
 
-            Printer.focus("Adding statistics");
-            service.addStatistics(post.getId());
-            service.addStatistics(announcement.getId());
-
-            Printer.focus("Performing a polymorphic query to retrieve all topics from a board");
-            var boardsTopics = service.getBoardsTopics(board.id());
-            Printer.entityList(boardsTopics);
+            Printer.focus("Creating PostStatistics..");
+            var postStatistics = service.createPostStatistics(post.getId());
+            Printer.entity(postStatistics);
         };
     }
 }
 
-interface BoardRepository extends JpaRepository<Board, Long> {
+interface BoardRepository extends JpaRepository<Board, Long> {}
 
-    @Query(value = """
-            select b from Board b join fetch b.topics where b.id = :id
-            """)
-    Optional<Board> findBoardByIdFull(@Param("id") Long id);
+interface PostRepository extends JpaRepository<Post, Long> {
+    @EntityGraph(attributePaths = Post_.BOARD)
+    @Override
+    Optional<Post> findById(Long aLong);
 }
 
-interface PostRepository extends JpaRepository<Topic<Post>, Long> {}
+interface AnnouncementRepository extends JpaRepository<Announcement, Long> {}
 
-interface AnnouncementRepository extends JpaRepository<Topic<Announcement>, Long> {}
-
-interface TopicRepository extends JpaRepository<Topic, Long> {
-
-    @EntityGraph(attributePaths = Topic_.BOARD)
-    @Query(value = """
-            select t from Topic t order by t.class, t.id desc
-            """)
-    List<Topic> findTopicsSortedByType();
-
-    @EntityGraph(attributePaths = Topic_.BOARD)
-    @Query(value = """
-            select p from Post p
-            """)
-    List<Topic<Post>> findAllPosts();
-}
-
-interface TopicStatisticsRepository extends JpaRepository<TopicStatistics, Long> {}
+interface PostStatisticsRepository extends JpaRepository<PostStatistics, Long> {}
 
 @Service
 class TestService {
@@ -93,20 +68,17 @@ class TestService {
     private final BoardRepository boardRepository;
     private final PostRepository postRepository;
     private final AnnouncementRepository announcementRepository;
-    private final TopicRepository topicRepository;
-    private final TopicStatisticsRepository topicStatisticsRepository;
+    private final PostStatisticsRepository postStatisticsRepository;
 
     TestService(
             BoardRepository boardRepository,
             PostRepository postRepository,
             AnnouncementRepository announcementRepository,
-            TopicRepository topicRepository,
-            TopicStatisticsRepository topicStatisticsRepository) {
+            PostStatisticsRepository postStatisticsRepository) {
         this.boardRepository = boardRepository;
         this.postRepository = postRepository;
         this.announcementRepository = announcementRepository;
-        this.topicRepository = topicRepository;
-        this.topicStatisticsRepository = topicStatisticsRepository;
+        this.postStatisticsRepository = postStatisticsRepository;
     }
 
     public Board creatBoard(Board board) {
@@ -126,7 +98,7 @@ class TestService {
     }
 
     /**
-     * @apiNote 1 INSERT for the parent table topic + 1 INSERT for the child table post
+     * @apiNote 1 INSERT for the child table post
      */
     private Post createPost(Post post) {
         return postRepository.save(post);
@@ -145,29 +117,20 @@ class TestService {
     }
 
     /**
-     * @apiNote 1 INSERT for the parent table topic + 1 INSERT for the child table announcement
+     * @apiNote 1 INSERT for the child table announcement
      */
     private Announcement createAnnouncement(Announcement announcement) {
         return announcementRepository.save(announcement);
     }
 
-    @Transactional
-    public void addStatistics(long topicId) {
-        var topic = topicRepository.findById(topicId).orElseThrow();
-        var stats = new TopicStatistics().topic(topic);
-        stats.incrementViews();
-        topicStatisticsRepository.save(stats);
-    }
-
     /**
-     * @implNote This is a polymorphic query since it return both the Topic children (post and announcement)
-     * @apiNote Hibernate needs to have the fully resolved entity, hence it needs to perform a left join with both the
-     * child table
+     * @apiNote 1 INSERT for the table postStatistics
      */
     @Transactional
-    public List<Topic> getBoardsTopics(long boardId) {
-        var board = boardRepository.findBoardByIdFull(boardId).orElseThrow();
-        return board.topics();
+    public PostStatistics createPostStatistics(Long postId) {
+        var post = postRepository.findById(postId).orElseThrow();
+        var postStatistics = new PostStatistics().topic(post);
+        return postStatisticsRepository.save(postStatistics);
     }
 }
 
@@ -184,9 +147,6 @@ class Board {
 
     private String name;
 
-    @OneToMany(mappedBy = Topic_.BOARD) // bidirectional oneToMany
-    private List<Topic> topics = new ArrayList<>();
-
     @Override
     public String toString() {
         return "Board{" + "name='" + name + '\'' + '}';
@@ -194,10 +154,8 @@ class Board {
 }
 
 @Getter
-@Entity
-@Table
-@Inheritance(strategy = InheritanceType.JOINED) // default inheritance type
-class Topic<T extends Topic<T>> {
+@jakarta.persistence.MappedSuperclass // default inheritance type
+abstract class Topic<T extends Topic<T>> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -235,8 +193,7 @@ class Topic<T extends Topic<T>> {
 
 @Getter
 @Entity
-@Table
-// TODO no inheritance strategy is required on the child entities since they inherit from the parent class
+@Table(name = "post")
 class Post extends Topic<Post> {
     private String content;
 
@@ -259,8 +216,7 @@ class Post extends Topic<Post> {
 
 @Getter
 @Entity
-@Table
-// TODO no inheritance strategy is required on the child entities since they inherit from the parent class
+@Table(name = "announcement")
 class Announcement extends Topic<Announcement> {
     private Instant validUntil;
 
@@ -284,29 +240,51 @@ class Announcement extends Topic<Announcement> {
 @Getter
 @Setter
 @Accessors(fluent = true, chain = true)
-@Entity
-@Table
-class TopicStatistics {
+@jakarta.persistence.MappedSuperclass
+abstract class TopicStatistics<T extends Topic> {
 
     @Id
-    private Long topicId;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @MapsId
-    // TODO the primary key is shared with the parent table topic but its not foreign key to the child tables, even
-    //  if the value is the same
-    @JoinColumn(name = TopicStatistics_.TOPIC_ID)
-    // TODO statistics can be associated to both post and announcements
-    private Topic topic;
+    private Long id;
 
     private long views;
 
-    public void incrementViews() {
+    public TopicStatistics<T> incrementViews() {
         this.views++;
+        return this;
     }
+}
+
+@Entity
+@Table
+@Getter
+@Setter
+@Accessors(fluent = true, chain = true)
+class PostStatistics extends TopicStatistics<Post> {
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId
+    @JoinColumn(name = TopicStatistics_.ID)
+    private Post topic;
 
     @Override
     public String toString() {
-        return "TopicStatistics{" + "topicId=" + topicId + ", topic=" + topic + ", views=" + views + '}';
+        return "PostStatistics{" + "id=" + super.id() + ", topic=" + topic + ", views=" + super.views() + '}';
+    }
+}
+
+@Entity
+@Table
+@Getter
+@Setter
+class AnnouncementStatistics extends TopicStatistics<Announcement> {
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId
+    @JoinColumn(name = TopicStatistics_.ID)
+    private Announcement topic;
+
+    @Override
+    public String toString() {
+        return "AnnouncementStatistics{" + "id=" + super.id() + ", topic=" + topic + ", views=" + super.views() + '}';
     }
 }

@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: table_per_class # must match the active profile specified in each Main
+    active: mapped_superclass # must match the active profile specified in each Main
   liquibase:
     contexts: ${spring.profiles.active}
   datasource:

@@ -20,5 +20,4 @@ public class Printer {
         System.out.println("\nEntity state \n");
         entity.forEach(System.out::println);
     }
-
 }
