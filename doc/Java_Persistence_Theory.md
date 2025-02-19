@@ -2,6 +2,12 @@
 
 <!-- TOC -->
 * [Connections](#connections)
+* [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
+  * [Caching](#caching)
+  * [Entity state transitions](#entity-state-transitions)
+    * [JPA EntityManager](#jpa-entitymanager)
+    * [Hibernate Session](#hibernate-session)
+  * [Dirty checking](#dirty-checking)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
 * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
@@ -25,10 +31,12 @@
   * [`@MappedSuperclass`](#mappedsuperclass)
 <!-- TOC -->
 
+---
+
 # Connections
 
-
-The throughput X is considered and the number of transactions per second and its reciprocal T_avg is the average response time
+The throughput X is considered and the number of transactions per second and its reciprocal T_avg is the average
+response time
 
 ![throughput.png](images/connections/throughput.png)
 
@@ -42,18 +50,97 @@ The response time is a combination of several factors:
 
 ![response-time.png](images/connections/response-time.png)
 
-The most demanding operation is connection acquisition. The JDBC driver manager acts as a factory of physical database connection; when the application asks for a new connection from the driver, a socket is opened and a TCP connection is established between the JDBC client and the database server (the DB will allocate a thread or a process).
+The most demanding operation is connection acquisition. The JDBC driver manager acts as a factory of physical database
+connection; when the application asks for a new connection from the driver, a socket is opened and a TCP connection is
+established between the JDBC client and the database server (the DB will allocate a thread or a process).
 
 ![connection-lifecycle.png](images/connections/connection-lifecycle.png)
 
-This is why we use connection pools like HikariCP which leave the physical connection open while serving pool connections that can be reused with a small overhead. Even closing a connection pool is not an expensive operation.
+This is why we use connection pools like HikariCP which leave the physical connection open while serving pool
+connections that can be reused with a small overhead. Even closing a connection pool is not an expensive operation.
 
 ![pooled-connection.png](images/connections/pooled-connection.png)
 
-Hibernate DatasourceConnectionProvider is the best choice among the connection pool providers since it offers the best control over the DataSource configuration, it supports JTA transactions (for Java EE projects), it can have as many proxies as we want chained (like FlexyPool for monitoring), supports also connections pool not supported natively by hibernate. What Hibernate sees is just a decorated Datasource.
+Hibernate DatasourceConnectionProvider is the best choice among the connection pool providers since it offers the best
+control over the DataSource configuration, it supports JTA transactions (for Java EE projects), it can have as many
+proxies as we want chained (like FlexyPool for monitoring), supports also connections pool not supported natively by
+hibernate. What Hibernate sees is just a decorated Datasource.
 
-![datasource-provider.png](images/connections/datasource-provider.png)
+<img alt="datasource-provider.png" height="200" src="images/connections/datasource-provider.png" width="600"/>
 
+---
+
+# Persistence Context in JPA and Hibernate
+
+The persistence is responsible for managing entities once fetched from the database; we can think it as a Map where the
+key is the entity identifier and the values is the entity object reference. Its role is to synchronize the entities
+state change with the database.
+
+![](images/persistence-context/api.png)
+
+JPA offers the `EntityManager` interface to interact with the underlying persistence context, while hibernate, which
+predates JPA, offer the `Session interface` with the same role.
+
+![](images/persistence-context/entity_manager.png)
+
+Since Hibernate 5.2 the `Session` interface directly implements the `EntityManager` specifications and therefore, its
+implementation, the `SessionImpl` is directly related as well. These are commonly referred to as `first-level cache`
+
+## Caching
+
+Once an entity is *managed* (i.e. loaded) by the persistence context it is also cached, meaning that each successive
+request will avoid a database roundtrip.
+
+The standard caching mechanism offered by the persistence context is the so called `write-behinde` cache mechanism;
+basically the cache act as buffer, the write operations are not executed when fired but enqueued and scheduled for
+execution. It will be only at flush time when all enqueued operations are executed and the cache state synchronized with
+the database. This allows for the write operations to be batched together, reducing the number of round-trips between
+application and database.
+
+## Entity state transitions
+
+Aside from caching entities, the persistence context manages entity state transitions; JPA and hibernates define
+slightly different methods in their respective interfaces to handle state transitions.
+
+### JPA EntityManager
+
+![](images/persistence-context/jpa_transitions.png)
+
+* A new entity when created for the first time is in the `New` or `Transiet` state; by calling `persist` it goes into
+  `Managed` state; only at flush time a INSERT statement will be executed.
+* By calling `find` (or any other retrieval method), an entity will be loaded into the persistence context in the
+  `Managed` state
+* By calling `remove` on a manged entity, the entity state will change to `Removed` and a flush time this will result in
+  a DELETE statement being fired to delete the associated row in the table
+* If the persistence context is closed ot the entity in managed state is evicted from it, the entity state will change
+  to `Detached` meaning that it is no longer synchronized with the database.
+* To reattach a detached entity, the `merge` method must be called and, if in the persistence context there
+  isn't another managed entity with the same identifier, the persistence context will fetch the entity directly from the
+  database and copy on it the state of the previously detached entity;
+* There is no method in the JPA EntityManager that results in an UPDATE sql statement, this is because at flush time,
+  any entity in the `Managed` state will be synchronized with the database. If the persistence context determines the
+  entity changed since it was first loaded (read `dirty checking`), then it will trigger an UPDATE statement at flush time.
+
+### Hibernate Session
+
+Hibernate session adhere to the JPA standards but pre-dated it, therefore even if the same method are supported there
+are some differences as well
+
+![](images/persistence-context/hibernate_transitions.png)
+
+* The `save` method is legacy, and unlike persist it returns the entity identifier
+* The fetching can be done not only by entity identifier but also by `naturalId`
+* The `delete` method is also a legacy one; as a matter of fact, the JPA `remove` delegates to the hibernate `delete`
+  method
+* To reattach a detached entity there is also the `update` method in addition to the JPA `merge`; this will change the
+  entity state to `Managed` and schedule an UPDATE statement for the next flush operation
+
+## Dirty checking
+
+Dirty checking is the process of detecting entity modification happened in the persistence context
+
+
+---
 
 # Primary Keys and JPA identifiers
 
@@ -100,6 +187,8 @@ only the `@Id`, annotation don’t do this) or generated by the provider with 3 
   lock (row-level locking) that is transactional and requires the whole insert transaction to commit or rollback. An
   alternative is to have a separate transaction handling the value generation, but this requires a separate database
   connection
+
+---
 
 # Entity Relationship
 
@@ -148,6 +237,7 @@ In this way, the removal of a comment is efficient since executes only one DELET
 from the Comment object so that it can be garbage collected.
 
 ## Unidirectional `@OneToMany`
+
 (DON'T USE IT IF YOU CAN)
 
 Even if uncommon, we might opt to hold a unidirectional reference only on the parent-side of the relationship.
@@ -324,17 +414,24 @@ public Post removeTag(Tag tag) {
 An EnumType can be mapped to a database column in 3 ways:
 
 - Using JPA `@Enumerated` annotation:
-    - with `EnumType.STRING` by which the enum is stored as a string. The string representation occupies more bits but it is human-readable
+    - with `EnumType.STRING` by which the enum is stored as a string. The string representation occupies more bits but
+      it is human-readable
 
   ![string-enum.png](images/enumtype/string-enum.png)
 
-    - with `EnumType.ORDINAL` by which the enum is stored as an int representing the literal value. The ordinal representation saves bites but, for a service consuming this data, it doesn’t give any way to interpret the data without a decoding table. If we know the enum to have less than 256 values we can use a tinyint. To map the decoding table post_status_info we need a `@ManyToOne`association on the table containing the enum column, specifying that the item cannot be inserted or updated since we don't want to have two owner of the same data
+    - with `EnumType.ORDINAL` by which the enum is stored as an int representing the literal value. The ordinal
+      representation saves bites but, for a service consuming this data, it doesn’t give any way to interpret the data
+      without a decoding table. If we know the enum to have less than 256 values we can use a tinyint. To map the
+      decoding table post_status_info we need a `@ManyToOne`association on the table containing the enum column,
+      specifying that the item cannot be inserted or updated since we don't want to have two owner of the same data
 
   ![ordinal-enum-1.png](images/enumtype/ordinal-enum-1.png)
 
   ![ordinal-enum-2.png](images/enumtype/ordinal-enum-2.png)
 
-- Creating a custom type (if the db vendor permits it) like the PostgreSQL EnumType, by which the database will be able to store the string value of the enum while reducing the space required in comparison to the varchar implementation required in EnumType.STRING
+- Creating a custom type (if the db vendor permits it) like the PostgreSQL EnumType, by which the database will be able
+  to store the string value of the enum while reducing the space required in comparison to the varchar implementation
+  required in EnumType.STRING
 
   ![psql-enum-create.png](images/enumtype/psql-enum-create.png)
 
@@ -342,9 +439,12 @@ An EnumType can be mapped to a database column in 3 ways:
 
   ![psql-enum.png](images/enumtype/psql-enum.png)
 
-  And create a custom class that extends the default Hibernate EnumType, overriding the nullSafeSet method that is responsible for binding the enum type as a jdbc-prepared statement parameter
+  And create a custom class that extends the default Hibernate EnumType, overriding the nullSafeSet method that is
+  responsible for binding the enum type as a jdbc-prepared statement parameter
 
   ![psql-custom-type.png](images/enumtype/psql-custom-type.png)
+
+---
 
 # JPA inheritance
 
@@ -451,3 +551,6 @@ Using the `@MappedSuperclass` inheritance strategy, the persistence layer is rep
 representations of the child entities. The parent entity is modeled for convenience only at the application level as
 abstract class and owing the fields common to every member of the inheritance tree. Hence, no polymorphic queries are
 possible, since the inheritance hierarchy exist only at the application level.
+
+---
+
