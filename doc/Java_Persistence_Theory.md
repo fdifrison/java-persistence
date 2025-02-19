@@ -121,7 +121,7 @@ slightly different methods in their respective interfaces to handle state transi
   database and copy on it the state of the previously detached entity;
 * There is no method in the JPA EntityManager that results in an UPDATE sql statement, this is because at flush time,
   any entity in the `Managed` state will be synchronized with the database. If the persistence context determines the
-  entity changed since it was first loaded (read `dirty checking`), then it will trigger an UPDATE statement at flush
+  entity changed since it was first loaded (aka `dirty checking`), then it will trigger an UPDATE statement at flush
   time.
 
 ### Hibernate Session
@@ -171,7 +171,22 @@ capture the pending entity state changes
 
 ![](images/persistence-context/auto_flush.png)
 
+JPA and Hibernate AUTO flush modes differ slightly; JPA requires a flush before each query and transaction while
+hibernate use a smarter approach (see `NativeHibernateSessionFactory`, trying to identify if the flush before the query
+execution is required. To do so, hibernate inspects the query table space affected by the incoming query, and it
+triggers a flush only if there is an entity in a state transition in that same query table space. This is to delay as
+much as possible the first-level cache (aka persistence context) synchronization.
 
+The problem with hibernate optimization is that it doesn't work with native query out of the box since, when a query is
+tagged as native, hibernates knows that it holds the specific dialect of the underlying database provider, and therefor
+it won't parse it (for this reason the JPA compliant implementation of the hibernate session will force a flush when it
+sees a native query, in order to be sure to maintain consistency). This result in hibernate being unable to know the
+query space of the incoming query. It is the
+developer job to instruct the query with the table space that needs to synchronized upon its execution. (
+see [hibernate-query-space](https://thorben-janssen.com/hibernate-query-spaces/)).
+
+An alternative is to switch to `FlushMode.ALWAYS`, which has the same behavior of the JPA `AUTO`, either at session
+level or only for the specific query.
 
 ## Events and event listener
 
