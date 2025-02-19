@@ -1,34 +1,36 @@
 <H1>Java Persistence Theory</H1>
 
 <!-- TOC -->
+
 * [Connections](#connections)
 * [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
-  * [Caching](#caching)
-  * [Entity state transitions](#entity-state-transitions)
-    * [JPA EntityManager](#jpa-entitymanager)
-    * [Hibernate Session](#hibernate-session)
-  * [Dirty checking](#dirty-checking)
+    * [Caching](#caching)
+    * [Entity state transitions](#entity-state-transitions)
+        * [JPA EntityManager](#jpa-entitymanager)
+        * [Hibernate Session](#hibernate-session)
+    * [Dirty checking](#dirty-checking)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
 * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
-  * [`@ManyToOne`](#manytoone)
-    * [bidirectional](#bidirectional)
-  * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
-    * [join table](#join-table)
-      * [List vs Set Collections](#list-vs-set-collections)
-    * [`@JoinColumn`](#joincolumn)
-  * [`@OneToOne`](#onetoone)
-    * [unidirectional](#unidirectional)
-    * [bidirectional](#bidirectional-1)
-  * [`@ManyToMany`](#manytomany)
-    * [Explicit mapping](#explicit-mapping)
+    * [`@ManyToOne`](#manytoone)
+        * [bidirectional](#bidirectional)
+    * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
+        * [join table](#join-table)
+            * [List vs Set Collections](#list-vs-set-collections)
+        * [`@JoinColumn`](#joincolumn)
+    * [`@OneToOne`](#onetoone)
+        * [unidirectional](#unidirectional)
+        * [bidirectional](#bidirectional-1)
+    * [`@ManyToMany`](#manytomany)
+        * [Explicit mapping](#explicit-mapping)
 * [EnumType](#enumtype)
 * [JPA inheritance](#jpa-inheritance)
-  * [Single table inheritance](#single-table-inheritance)
-    * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
-  * [Joined inheritance](#joined-inheritance)
-  * [Table per class](#table-per-class)
-  * [`@MappedSuperclass`](#mappedsuperclass)
+    * [Single table inheritance](#single-table-inheritance)
+        * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
+    * [Joined inheritance](#joined-inheritance)
+    * [Table per class](#table-per-class)
+    * [`@MappedSuperclass`](#mappedsuperclass)
+
 <!-- TOC -->
 
 ---
@@ -119,7 +121,8 @@ slightly different methods in their respective interfaces to handle state transi
   database and copy on it the state of the previously detached entity;
 * There is no method in the JPA EntityManager that results in an UPDATE sql statement, this is because at flush time,
   any entity in the `Managed` state will be synchronized with the database. If the persistence context determines the
-  entity changed since it was first loaded (read `dirty checking`), then it will trigger an UPDATE statement at flush time.
+  entity changed since it was first loaded (read `dirty checking`), then it will trigger an UPDATE statement at flush
+  time.
 
 ### Hibernate Session
 
@@ -137,8 +140,69 @@ are some differences as well
 
 ## Dirty checking
 
-Dirty checking is the process of detecting entity modification happened in the persistence context
+Dirty checking is the process of detecting entity modification happened in the persistence context; it facilitates
+greatly the operations needed at tha application level since the developer can focus on the domain models state changes
+and leave to the persistence context the generation of the underlying sql statements.
 
+## Flushing
+
+Flushing is the act of synchronization between the in-memory information held by the persistence context and the
+underlying database. The persistence context can be flushed either manually or automatically, as a matter of fact, both
+the JPA and the hibernate interfaces define the `flush` method to synchronize the in-memory domain models with the
+underlying database structure. Flush is especially important before running a query or before a transaction commit since
+it guarantees that the in-memory changes are visible; thi prevents [
+`read-your-writes`](https://arpitbhayani.me/blogs/read-your-write-consistency/) consistency issue.
+
+**JPA flushing modes**
+
+![](images/persistence-context/jpa_flush.png)
+
+The `COMMIT` flush mode type is prone to inconsistency since it doesn't trigger a flush before every query that may not
+capture the pending entity state changes
+
+**Hibernate flushing modes**
+
+![](images/persistence-context/hibernate_flush.png)
+
+The `COMMIT` flush mode type is prone to inconsistency since it doesn't trigger a flush before every query that may not
+capture the pending entity state changes
+
+### AUTO flushing mode
+
+![](images/persistence-context/auto_flush.png)
+
+
+
+## Events and event listener
+
+Hibernates internals defines, for any entity state change, specif events  (i.e. `PersistEvent`, `MergeEvent` etc...)
+associated with a default implementation of an event listener like `DefaultPersistEventListener` (these can be by custom
+implementations). In turn, the event listener translate the state change in an internal `EntityAction` that can be
+queued in an `ActionQueue` and gets executed only at flush time. If an entity that is going to be removed has an
+association is marked with the `orphan removal strategy`, then the `EntityDeleteAction` at flush time can also generate
+an `OrphanRemovalAction` if the child entity is unreferenced; both the actions trigger a sql DELETE statement.
+
+![](images/persistence-context/events.png)
+
+Toward the end of the flushing of the persistence context, hibernate will execute all the actions that have been
+enqueued, but in a strict specif order:
+
+* `OrphanRemovalAction`
+* `EntityInsertAction` and `EntityIdentityInsertAction`
+* `EntityUpdateAction`
+* `CollectionRemoveAction`
+* `CollectionUpdateAction`
+* `CollectionRecreateAction`
+* `EntityDeleteAction`
+
+This implies that, the order of operations defined at the application level is not what then hibernate executes, unless
+we force a flush. For example if we remove an entity with a unique column and in the same context we create a new one
+with the same value for that unique field, we will incur in a `ConstrainViolationException` since as seen above, the
+delete action is the last executed by hibernate action queues, therefore he will try to create the new entity before
+deleting the older one. The solution would be or to flush right after the calling of the remove (wrong approach) or to
+make hibernate fire an update statement by simply changing the existing entity instead of deleting it and recreating it.
+
+**N.B avoiding manual flush we delay the connection acquisition and consequently reduce the transaction response time**
 
 ---
 
@@ -168,7 +232,7 @@ only the `@Id`, annotation don’t do this) or generated by the provider with 3 
 
 - Identity → `GenerationType.IDENTITY`, using the physical database identity column. The identity generator can be
   applied only to a single column; An internal counter is incremented every time it is invoked using a lightweight
-  locking mechanism that is not transactional (i.e **rollbacks can lead to gaps in the identity column values of two
+  locking mechanism that is not transactional (i.e. **rollbacks can lead to gaps in the identity column values of two
   consecutive columns rows**) and can release the lock right away after the increment.
   **DRAWBACKS:**
   The new value assigned from the counter is known only after executing the INSERT statement.
