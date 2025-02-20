@@ -1,39 +1,40 @@
 <H1>Java Persistence Theory</H1>
 
 <!-- TOC -->
-
 * [Connections](#connections)
 * [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
-    * [Caching](#caching)
-    * [Entity state transitions](#entity-state-transitions)
-        * [JPA EntityManager](#jpa-entitymanager)
-        * [Hibernate Session](#hibernate-session)
-    * [Dirty checking](#dirty-checking)
-    * [Flushing](#flushing)
-        * [AUTO flushing mode](#auto-flushing-mode)
-    * [Events and event listener](#events-and-event-listener)
+  * [Caching](#caching)
+  * [Entity state transitions](#entity-state-transitions)
+    * [JPA EntityManager](#jpa-entitymanager)
+    * [Hibernate Session](#hibernate-session)
+  * [Dirty checking](#dirty-checking)
+    * [Bytecode enhancement](#bytecode-enhancement)
+  * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
+  * [Flushing](#flushing)
+    * [AUTO flushing mode](#auto-flushing-mode)
+    * [Flushing in batch processing](#flushing-in-batch-processing)
+  * [Events and event listener](#events-and-event-listener)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
 * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
-    * [`@ManyToOne`](#manytoone)
-        * [bidirectional](#bidirectional)
-    * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
-        * [join table](#join-table)
-            * [List vs Set Collections](#list-vs-set-collections)
-        * [`@JoinColumn`](#joincolumn)
-    * [`@OneToOne`](#onetoone)
-        * [unidirectional](#unidirectional)
-        * [bidirectional](#bidirectional-1)
-    * [`@ManyToMany`](#manytomany)
-        * [Explicit mapping](#explicit-mapping)
+  * [`@ManyToOne`](#manytoone)
+    * [bidirectional](#bidirectional)
+  * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
+    * [join table](#join-table)
+      * [List vs Set Collections](#list-vs-set-collections)
+    * [`@JoinColumn`](#joincolumn)
+  * [`@OneToOne`](#onetoone)
+    * [unidirectional](#unidirectional)
+    * [bidirectional](#bidirectional-1)
+  * [`@ManyToMany`](#manytomany)
+    * [Explicit mapping](#explicit-mapping)
 * [EnumType](#enumtype)
 * [JPA inheritance](#jpa-inheritance)
-    * [Single table inheritance](#single-table-inheritance)
-        * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
-    * [Joined inheritance](#joined-inheritance)
-    * [Table per class](#table-per-class)
-    * [`@MappedSuperclass`](#mappedsuperclass)
-
+  * [Single table inheritance](#single-table-inheritance)
+    * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
+  * [Joined inheritance](#joined-inheritance)
+  * [Table per class](#table-per-class)
+  * [`@MappedSuperclass`](#mappedsuperclass)
 <!-- TOC -->
 
 ---
@@ -161,6 +162,39 @@ context, multiplied by their properties; since even if only one entity has chang
 context, and this can have a significant impact on CPU resources, particularly if the number of managed entities is
 large.
 
+### Bytecode enhancement
+
+It is possible to activate, at build time as a maven plugin, the hibernate bytecode enhancer tool which will allows to
+hibernate to modify the bytecode of our java class for specific needs. In the specific case, we are interested in the
+dirty tracking capability of the tool. Essentially, the hibernate enhanced class will be able to track before flushing
+all the changes in the entity properties and mark them for dirty checking using specific getters and setters; In this
+way, at flush time the persistence context won't need to perform the computation required for dirty checking; instead it
+will simply ask the entity to return its dirty properties since the entity already holds the states of the changed
+properties and their name/column.
+
+**N.B. the difference in performance needs to be measured in context, and in general it will have significant effect
+only when the size of the persistence context is significant.**
+
+```xml
+
+<plugin>
+    <groupId>org.hibernate.orm.tooling</groupId>
+    <artifactId>hibernate-enhance-maven-plugin</artifactId>
+    <version>${hibernate.version}</version>
+    <executions>
+        <execution>
+            <configuration>
+                <failOnError>true</failOnError>
+                <enableDirtyTracking>true</enableDirtyTracking>
+            </configuration>
+            <goals>
+                <goal>enhance</goal>
+            </goals>
+        </execution>
+    </executions>
+</plugin>
+```
+
 ## Hydration -> read-by-name (Hibernate < 6.0)
 
 When an entity is fetched from the database, the `EntityPersister` use the JDBC ResultSet to generate a Java `Object[]`
@@ -232,11 +266,11 @@ These steps are defined as `flush-clear-commit`:
 
 ```java
 private void flush(EntityManager entityManager) {
-        //Commit triggers a flush when using FlushType.AUTO, hence the sql statements batched are executed
-        entityManager.getTransaction().commit();
-        entityManager.getTransaction().begin();
-        entityManager.clear();
-    }
+    //Commit triggers a flush when using FlushType.AUTO, hence the sql statements batched are executed
+    entityManager.getTransaction().commit();
+    entityManager.getTransaction().begin();
+    entityManager.clear();
+}
 ```
 
 ## Events and event listener
