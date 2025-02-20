@@ -9,6 +9,9 @@
         * [JPA EntityManager](#jpa-entitymanager)
         * [Hibernate Session](#hibernate-session)
     * [Dirty checking](#dirty-checking)
+    * [Flushing](#flushing)
+        * [AUTO flushing mode](#auto-flushing-mode)
+    * [Events and event listener](#events-and-event-listener)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
 * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
@@ -144,6 +147,34 @@ Dirty checking is the process of detecting entity modification happened in the p
 greatly the operations needed at tha application level since the developer can focus on the domain models state changes
 and leave to the persistence context the generation of the underlying sql statements.
 
+![](images/persistence-context/dirty_checking.png)
+
+When the persistence context is flushed, the Hibernate Session trigger a `FlushEvent`, handled by its default event
+listener (`DefaultFlushEventListener`); For each managed entity a `FlushEntityEvent`  is triggered, handled by the
+associated event listener (`DefaultFlushEntityEventListener`) which in turn calls the `findDirty` method on the
+associated `EntityPersister`. The latter, for every entity attribute checks if the current value is changed since the
+entity was first loaded in the persistence context; finally, the dirty properties are sent back to the
+`FlushEntityEvent` that will schedule the required UPDATE statements.
+
+We can conclude that the number of dirty checks is proportional to the number of entities loaded in the persistence
+context, multiplied by their properties; since even if only one entity has changed, hibernate will scan the entire
+context, and this can have a significant impact on CPU resources, particularly if the number of managed entities is
+large.
+
+## Hydration -> read-by-name (Hibernate < 6.0)
+
+When an entity is fetched from the database, the `EntityPersister` use the JDBC ResultSet to generate a Java `Object[]`
+to store all entity property values; this operation is called `hydration`. Once the state is loaded, it's stored in the
+persistence context along with the entity. This means that we need twice as much memory to manage an entity. In the
+application layer, if we know that a specific entity is not to be modified, we can save space fetching the entity in
+read-only mode. This can be done at Session level (`session.setDefaultReadOnly(true)`) or ar query level using hints (
+`.setHint(QueryHints.HINT_READONLY, true)`).
+
+**N.B. read-only queries optimize both memory (no hydration) and CPU (no dirty checking) resources.**
+
+From hibernate > 6.0, mapping the readings from JDBC has been fundamentally changed from a `read-by-name` to a [
+`read-by-position`](https://docs.jboss.org/hibernate/orm/6.0/migration-guide/migration-guide.html#type) approach,
+
 ## Flushing
 
 Flushing is the act of synchronization between the in-memory information held by the persistence context and the
@@ -187,6 +218,26 @@ see [hibernate-query-space](https://thorben-janssen.com/hibernate-query-spaces/)
 
 An alternative is to switch to `FlushMode.ALWAYS`, which has the same behavior of the JPA `AUTO`, either at session
 level or only for the specific query.
+
+### Flushing in batch processing
+
+For standard operations, to avoid long locking time and excessive database memory consumption, JPA allows the
+persistence context to span over multiple database transactions; however, in batch processing it is very important to
+keep the persistence context within a reasonable dimension to avoid committing a single huge transaction, that also
+might fail at the end, rollback, and invalidate all the work done. To avoid this, it's not enough to periodically flush
+anc clear the persistence context, but we need also to commit the currently running database transaction to avoid a
+single huge transaction at the end that either commit or fail and rollback.
+
+These steps are defined as `flush-clear-commit`:
+
+```java
+private void flush(EntityManager entityManager) {
+        //Commit triggers a flush when using FlushType.AUTO, hence the sql statements batched are executed
+        entityManager.getTransaction().commit();
+        entityManager.getTransaction().begin();
+        entityManager.clear();
+    }
+```
 
 ## Events and event listener
 
