@@ -1,42 +1,47 @@
 <H1>Java Persistence Theory</H1>
 
 <!-- TOC -->
+
 * [Connections](#connections)
 * [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
-  * [Caching](#caching)
-  * [Entity state transitions](#entity-state-transitions)
-    * [JPA EntityManager](#jpa-entitymanager)
-    * [Hibernate Session](#hibernate-session)
-  * [Dirty checking](#dirty-checking)
-    * [Bytecode enhancement](#bytecode-enhancement)
-  * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
-  * [Flushing](#flushing)
-    * [AUTO flushing mode](#auto-flushing-mode)
-    * [Flushing in batch processing](#flushing-in-batch-processing)
-  * [Events and event listener](#events-and-event-listener)
+    * [Caching](#caching)
+    * [Entity state transitions](#entity-state-transitions)
+        * [JPA EntityManager](#jpa-entitymanager)
+        * [Hibernate Session](#hibernate-session)
+    * [Dirty checking](#dirty-checking)
+        * [Bytecode enhancement](#bytecode-enhancement)
+    * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
+    * [Flushing](#flushing)
+        * [AUTO flushing mode](#auto-flushing-mode)
+        * [Flushing in batch processing](#flushing-in-batch-processing)
+    * [Events and event listener](#events-and-event-listener)
+* [SQL Statements: lifecycle, execution plan and caching](#sql-statements-lifecycle-execution-plan-and-caching)
+    * [Execution plan cache](#execution-plan-cache)
+    * [Prepared statement](#prepared-statement)
+    * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
 * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
-  * [`@ManyToOne`](#manytoone)
-    * [bidirectional](#bidirectional)
-  * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
-    * [join table](#join-table)
-      * [List vs Set Collections](#list-vs-set-collections)
-    * [`@JoinColumn`](#joincolumn)
-  * [`@OneToOne`](#onetoone)
-    * [unidirectional](#unidirectional)
-    * [bidirectional](#bidirectional-1)
-  * [`@ManyToMany`](#manytomany)
-    * [Explicit mapping](#explicit-mapping)
+    * [`@ManyToOne`](#manytoone)
+        * [bidirectional](#bidirectional)
+    * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
+        * [join table](#join-table)
+            * [List vs Set Collections](#list-vs-set-collections)
+        * [`@JoinColumn`](#joincolumn)
+    * [`@OneToOne`](#onetoone)
+        * [unidirectional](#unidirectional)
+        * [bidirectional](#bidirectional-1)
+    * [`@ManyToMany`](#manytomany)
+        * [Explicit mapping](#explicit-mapping)
 * [EnumType](#enumtype)
 * [JPA inheritance](#jpa-inheritance)
-  * [Single table inheritance](#single-table-inheritance)
-    * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
-  * [Joined inheritance](#joined-inheritance)
-  * [Table per class](#table-per-class)
-  * [`@MappedSuperclass`](#mappedsuperclass)
-<!-- TOC -->
+    * [Single table inheritance](#single-table-inheritance)
+        * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
+    * [Joined inheritance](#joined-inheritance)
+    * [Table per class](#table-per-class)
+    * [`@MappedSuperclass`](#mappedsuperclass)
 
+<!-- TOC -->
 ---
 
 # Connections
@@ -303,6 +308,74 @@ deleting the older one. The solution would be or to flush right after the callin
 make hibernate fire an update statement by simply changing the existing entity instead of deleting it and recreating it.
 
 **N.B avoiding manual flush we delay the connection acquisition and consequently reduce the transaction response time**
+
+---
+
+# SQL Statements: lifecycle, execution plan and caching
+
+SQL is a declarative language, it "only" describes what we as clients want and not how the underlying database engine
+will ingest the statement and produces the algorithms to retrieve the correct information. In this way, the database can
+test different execution strategies and estimate which is the most efficient data access plan for the client needs.
+
+![](images/persistence-context/statements.png)
+
+The main modules responsible for processing the sql statements are the `Parser`, the `Optimizer` and the `Executor`.
+The `Parser` verifies that the SQL statement is both syntactically and semantically correct (i.e. that both the specific
+sql grammar is correct and that the referenced tables and columns exists). The result of the parsing phase is the
+`syntax tree` (also known as query tree), i.e. the internal logical database representation of the query.
+
+For a given syntax tree, the database must decide the most efficient data fetching algorithm; the operation of finding
+the bests `action plans` is performed by the `Optimizer` which evaluates multiple data traversing options like which
+access method (table scan or index scan), which joining strategy (nested loops, hash join or merge join) and the join
+order. As a result, the Optimizer presents a list of access plan that will be passed to the Executor. The number of
+action plan possible can be very large, depending on the complexity of the query, and it's a cost intensive operation
+that can increase the transaction response time; therefore, the Optimizer has a fixed time budget for finding a
+reasonable action plan, usually with the most common algorithm: the `Cost-Based optimizer`. In the end, the cost is
+computed with the estimate of CPU cycle and I/O operation required for a specific plan. Due to the expensiveness of this
+operation, most database vendor will cache the execution plan chosen but, since the database structure can change over
+time, they also need a separate process for validating the existing plans.
+
+Once the best execution plan has been chosen (and cached), the `Executor`, using the storing engine, will use it to
+retrieve the data, built the resul set and, using the `trasaction engine`, guarantee the current transaction data
+integrity.
+
+## Execution plan cache
+
+Both statement parsing and execution plan generation are expensive operation, therefore the statement string value is
+used as an input to a hash function which becomes the key associated to the execution plan cache entry; as a
+consequence, if the statement changes, the database cannot reuse the cached execution plan. A concrete example are the
+dynamically generated JDBC statements.
+
+## Prepared statement
+
+![](images/persistence-context/prepare.png)
+
+Prepared statements, due to their static nature, allows the data access logic to reuse the same plan for multiple
+execution since only the bind parameters are supposed to vary at runtime. Because the JDBC PreparedStatements take the
+SQL query at creation time, the database can precompile (`prepare`) it in the syntax tree prior to executing it. During
+the execution phase the driver sends the binding parameters values allowing the database to compile and run the
+execution plan right away.
+
+In PostgreSQL > 9.2 the `prepare` phase only parse and rewrite the statement while the optimization and the planning
+phase are deferred until execution time; in this way the syntax tree is always optimized according to the actual values
+of the binding parameters, leading to an optimal execution plan.
+
+Theoretically, a prepared statement would require 2 database round trip, one for prepare and one for execute (contrary
+to a plain statement); however the JDBC PreparedStatement is optimized to perform both the actions in a single database
+request.
+
+## Client-Side vs. Server-Side statement caching:
+
+* Client-Side Prepared Statement: The JDBC driver simply performs parameter substitution and sends the query as a normal
+  SQL command.
+* Server-Side Prepared Statement: The query is sent to the PostgreSQL server as a prepared statement. This means the
+  server parses and plans the query once and can then execute it repeatedly with different parameters more efficiently.
+
+By default, when you use a prepared statement in Java, the driver doesn’t immediately create a prepared statement on the
+PostgreSQL server. Instead, it first “simulates” a prepared statement on the client side. The driver keeps a count of
+how many times that statement is executed. Once the same prepared statement has been run at least five times (this “5”
+is the default value for the driver's prepare threshold), the driver then sends a command to the server to actually
+create a server-side prepared statement.
 
 ---
 
