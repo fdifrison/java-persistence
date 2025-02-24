@@ -7,6 +7,7 @@
   * [Entity state transitions](#entity-state-transitions)
     * [JPA EntityManager](#jpa-entitymanager)
     * [Hibernate Session](#hibernate-session)
+      * [JPA merge vs Hibernate update](#jpa-merge-vs-hibernate-update)
   * [Dirty checking](#dirty-checking)
     * [Bytecode enhancement](#bytecode-enhancement)
   * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
@@ -23,6 +24,7 @@
   * [Batching in cascade](#batching-in-cascade)
     * [DELETE cascade](#delete-cascade)
     * [Batching on versioned entity](#batching-on-versioned-entity)
+  * [Default UPDATE behavior](#default-update-behavior)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
 * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
@@ -151,6 +153,14 @@ are some differences as well
 * To reattach a detached entity there is also the `update` method in addition to the JPA `merge`; this will change the
   entity state to `Managed` and schedule an UPDATE statement for the next flush operation
 
+#### JPA merge vs Hibernate update
+
+There is a slight difference in the behavior of JPA `merge` and Hibernate `update` methods, particularly important when
+using batching. Both are used to reattach a detached entity to the persistence context and to eventually propagate the
+UPDATE statement; however, JPA `merge` executes a SELECT statement for each entity that we need to reattach while
+Hibernate `update` is more efficient since it simply reattach the detached entity without the need of N SELECT
+statements.
+
 ## Dirty checking
 
 Dirty checking is the process of detecting entity modification happened in the persistence context; it facilitates
@@ -170,6 +180,10 @@ We can conclude that the number of dirty checks is proportional to the number of
 context, multiplied by their properties; since even if only one entity has changed, hibernate will scan the entire
 context, and this can have a significant impact on CPU resources, particularly if the number of managed entities is
 large.
+
+To limit this issue we could rely on the hibernate-specific annotation `@DynamicUpdate` which limits the update to the
+columns that have effectively changed from their first fetch from the persistence context. This however will
+automatically disable batching, even if a batch size is set.
 
 ### Bytecode enhancement
 
@@ -462,7 +476,7 @@ deletes applies. However, there are some workarounds:
   the benefit of a faster flushing operation since the persistence context doesn't need to propagate the delete
   statement to the child entities)
 * (BEST APPROACH) delegating the DELETE of the child entity to the database engine by adding a database-level directive
-  of cascade delete on the foreign key 
+  of cascade delete on the foreign key
   ```sql
   alter table post_comment
   add constraint fk_post_comment_post
@@ -477,6 +491,20 @@ Prior to Hibernate 5 or when using Oracle < 12c it was not possible to perform b
 
 To solve this, since hibernate 5 the property `hibernate.jdbc.batch:versioned_data` is set to **true** by default.
 
+## Default UPDATE behavior
+
+The default UPDATE behavior consent to batch statements that modifies different columns of the same entity since all the
+columns are sent over the network, even those which haven't been modified. This leads to a wider possibility of batching
+but with some potential disadvantages:
+
+* if there are large columns (e.g. blob) we are sending these always over the network as well
+* all indexes are scanned
+* replication node will also be propagated with all the columns, not just those modified
+* possible accidental execution of triggers
+
+However, at the cost of disabling batching entirely for a given entity, we can mark it with the hibernate annotation
+`@DynamicUpdate` which will select only the modified columns over the network. This will disable batching because a
+change in the binding parameters effectively results in a different prepared statement.
 
 ___
 
