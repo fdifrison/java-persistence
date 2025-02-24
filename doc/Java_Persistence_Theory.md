@@ -1,53 +1,5 @@
 <H1>Java Persistence Theory</H1>
 
-<!-- TOC -->
-* [Connections](#connections)
-* [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
-  * [Caching](#caching)
-  * [Entity state transitions](#entity-state-transitions)
-    * [JPA EntityManager](#jpa-entitymanager)
-    * [Hibernate Session](#hibernate-session)
-      * [JPA merge vs Hibernate update](#jpa-merge-vs-hibernate-update)
-  * [Dirty checking](#dirty-checking)
-    * [Bytecode enhancement](#bytecode-enhancement)
-  * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
-  * [Flushing](#flushing)
-    * [AUTO flushing mode](#auto-flushing-mode)
-    * [Flushing in batch processing](#flushing-in-batch-processing)
-  * [Events and event listener](#events-and-event-listener)
-* [SQL Statements: lifecycle, execution plan and caching](#sql-statements-lifecycle-execution-plan-and-caching)
-  * [Execution plan cache](#execution-plan-cache)
-  * [Prepared statement](#prepared-statement)
-  * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
-* [Batching in Hibernate](#batching-in-hibernate)
-  * [Bulking operations](#bulking-operations)
-  * [Batching in cascade](#batching-in-cascade)
-    * [DELETE cascade](#delete-cascade)
-    * [Batching on versioned entity](#batching-on-versioned-entity)
-  * [Default UPDATE behavior](#default-update-behavior)
-* [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
-* [JPA identifiers](#jpa-identifiers)
-* [Entity Relationship](#entity-relationship)
-  * [`@ManyToOne`](#manytoone)
-    * [bidirectional](#bidirectional)
-  * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
-    * [join table](#join-table)
-      * [List vs Set Collections](#list-vs-set-collections)
-    * [`@JoinColumn`](#joincolumn)
-  * [`@OneToOne`](#onetoone)
-    * [unidirectional](#unidirectional)
-    * [bidirectional](#bidirectional-1)
-  * [`@ManyToMany`](#manytomany)
-    * [Explicit mapping](#explicit-mapping)
-* [EnumType](#enumtype)
-* [JPA inheritance](#jpa-inheritance)
-  * [Single table inheritance](#single-table-inheritance)
-    * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
-  * [Joined inheritance](#joined-inheritance)
-  * [Table per class](#table-per-class)
-  * [`@MappedSuperclass`](#mappedsuperclass)
-<!-- TOC -->
-
 ---
 
 # Connections
@@ -55,7 +7,7 @@
 The throughput X is considered and the number of transactions per second and its reciprocal T_avg is the average
 response time
 
-![throughput.png](images/connections/throughput.png)
+![throughput.png](../images/connections/throughput.png)
 
 The response time is a combination of several factors:
 
@@ -65,25 +17,25 @@ The response time is a combination of several factors:
 - resultset fetching
 - closing transactions and releasing the connection
 
-![response-time.png](images/connections/response-time.png)
+![response-time.png](../images/connections/response-time.png)
 
 The most demanding operation is connection acquisition. The JDBC driver manager acts as a factory of physical database
 connection; when the application asks for a new connection from the driver, a socket is opened and a TCP connection is
 established between the JDBC client and the database server (the DB will allocate a thread or a process).
 
-![connection-lifecycle.png](images/connections/connection-lifecycle.png)
+![connection-lifecycle.png](../images/connections/connection-lifecycle.png)
 
 This is why we use connection pools like HikariCP which leave the physical connection open while serving pool
 connections that can be reused with a small overhead. Even closing a connection pool is not an expensive operation.
 
-![pooled-connection.png](images/connections/pooled-connection.png)
+![pooled-connection.png](../images/connections/pooled-connection.png)
 
 Hibernate DatasourceConnectionProvider is the best choice among the connection pool providers since it offers the best
 control over the DataSource configuration, it supports JTA transactions (for Java EE projects), it can have as many
 proxies as we want chained (like FlexyPool for monitoring), supports also connections pool not supported natively by
 hibernate. What Hibernate sees is just a decorated Datasource.
 
-<img alt="datasource-provider.png" height="200" src="images/connections/datasource-provider.png" width="600"/>
+<img alt="datasource-provider.png" height="200" src="../images/connections/datasource-provider.png" width="600"/>
 
 ---
 
@@ -93,12 +45,12 @@ The persistence is responsible for managing entities once fetched from the datab
 key is the entity identifier and the values is the entity object reference. Its role is to synchronize the entities
 state change with the database.
 
-![](images/persistence-context/api.png)
+![](../images/persistence-context/api.png)
 
 JPA offers the `EntityManager` interface to interact with the underlying persistence context, while hibernate, which
 predates JPA, offer the `Session interface` with the same role.
 
-![](images/persistence-context/entity_manager.png)
+![](../images/persistence-context/entity_manager.png)
 
 Since Hibernate 5.2 the `Session` interface directly implements the `EntityManager` specifications and therefore, its
 implementation, the `SessionImpl` is directly related as well. These are commonly referred to as `first-level cache`
@@ -121,7 +73,7 @@ slightly different methods in their respective interfaces to handle state transi
 
 ### JPA EntityManager
 
-![](images/persistence-context/jpa_transitions.png)
+![](../images/persistence-context/jpa_transitions.png)
 
 * A new entity when created for the first time is in the `New` or `Transiet` state; by calling `persist` it goes into
   `Managed` state; only at flush time a INSERT statement will be executed.
@@ -144,7 +96,7 @@ slightly different methods in their respective interfaces to handle state transi
 Hibernate session adhere to the JPA standards but pre-dated it, therefore even if the same method are supported there
 are some differences as well
 
-![](images/persistence-context/hibernate_transitions.png)
+![](../images/persistence-context/hibernate_transitions.png)
 
 * The `save` method is legacy, and unlike persist it returns the entity identifier
 * The fetching can be done not only by entity identifier but also by `naturalId`
@@ -167,7 +119,7 @@ Dirty checking is the process of detecting entity modification happened in the p
 greatly the operations needed at tha application level since the developer can focus on the domain models state changes
 and leave to the persistence context the generation of the underlying sql statements.
 
-![](images/persistence-context/dirty_checking.png)
+![](../images/persistence-context/dirty_checking.png)
 
 When the persistence context is flushed, the Hibernate Session trigger a `FlushEvent`, handled by its default event
 listener (`DefaultFlushEventListener`); For each managed entity a `FlushEntityEvent`  is triggered, handled by the
@@ -243,21 +195,21 @@ it guarantees that the in-memory changes are visible; thi prevents [
 
 **JPA flushing modes**
 
-![](images/persistence-context/jpa_flush.png)
+![](../images/persistence-context/jpa_flush.png)
 
 The `COMMIT` flush mode type is prone to inconsistency since it doesn't trigger a flush before every query that may not
 capture the pending entity state changes
 
 **Hibernate flushing modes**
 
-![](images/persistence-context/hibernate_flush.png)
+![](../images/persistence-context/hibernate_flush.png)
 
 The `COMMIT` flush mode type is prone to inconsistency since it doesn't trigger a flush before every query that may not
 capture the pending entity state changes
 
 ### AUTO flushing mode
 
-![](images/persistence-context/auto_flush.png)
+![](../images/persistence-context/auto_flush.png)
 
 JPA and Hibernate AUTO flush modes differ slightly; JPA requires a flush before each query and transaction while
 hibernate use a smarter approach (see `NativeHibernateSessionFactory`, trying to identify if the flush before the query
@@ -305,7 +257,7 @@ queued in an `ActionQueue` and gets executed only at flush time. If an entity th
 association is marked with the `orphan removal strategy`, then the `EntityDeleteAction` at flush time can also generate
 an `OrphanRemovalAction` if the child entity is unreferenced; both the actions trigger a sql DELETE statement.
 
-![](images/persistence-context/events.png)
+![](../images/persistence-context/events.png)
 
 Toward the end of the flushing of the persistence context, hibernate will execute all the actions that have been
 enqueued, but in a strict specif order:
@@ -335,7 +287,7 @@ SQL is a declarative language, it "only" describes what we as clients want and n
 will ingest the statement and produces the algorithms to retrieve the correct information. In this way, the database can
 test different execution strategies and estimate which is the most efficient data access plan for the client needs.
 
-![](images/persistence-context/statements.png)
+![](../images/persistence-context/statements.png)
 
 The main modules responsible for processing the sql statements are the `Parser`, the `Optimizer` and the `Executor`.
 The `Parser` verifies that the SQL statement is both syntactically and semantically correct (i.e. that both the specific
@@ -366,7 +318,7 @@ dynamically generated JDBC statements.
 
 ## Prepared statement
 
-![](images/persistence-context/prepare.png)
+![](../images/persistence-context/prepare.png)
 
 Prepared statements, due to their static nature, allows the data access logic to reuse the same plan for multiple
 execution since only the bind parameters are supposed to vary at runtime. Because the JDBC PreparedStatements take the
@@ -505,6 +457,50 @@ but with some potential disadvantages:
 However, at the cost of disabling batching entirely for a given entity, we can mark it with the hibernate annotation
 `@DynamicUpdate` which will select only the modified columns over the network. This will disable batching because a
 change in the binding parameters effectively results in a different prepared statement.
+
+---
+
+# Projections
+
+A projection is the operation of fetching a subset of an entity's columns and store it in a convenient POJO class.
+Limiting the number of columns retrieved can be beneficial in terms of performance since only the data required by the
+business case are fetched.
+
+By default, in plain JPA, a projection is represented by a Java `Object[]` where the selected columns, retrieved by the
+`ResultSet` for each row, are stored in the order of the SELECT clause. This applies to any JPA Query, be it JPQL,
+Criteria API or native SQL query
+
+```java
+List<Object[]> tuples = entityManager.createQuery("""
+                select
+                    p.id,
+                    p.title
+                from Post p
+                """)
+        .getResultList();
+```
+
+## Tuple
+
+From JPA 2.0 the support for `Tuple` projections was added; Tuples container are essentially a map that store the column
+name as key. One of the benefit is that we can access the records by column name instead of column position, therefore
+it the latter changes there won't be any side effect on the application code. Like the Object array, also Tuples can be
+used with any kind of query.
+
+```java
+List<Tuple> tuples = entityManager.createQuery("""
+                select
+                   p.id as id,
+                   p.title as title
+                from Post p
+                """, Tuple.class)
+            .getResultList();
+
+long id = tuple.get("id", Number.class).longValue();
+String title = tuple.get("title", String.class);
+```
+
+
 
 ___
 
@@ -783,7 +779,7 @@ An EnumType can be mapped to a database column in 3 ways:
     - with `EnumType.STRING` by which the enum is stored as a string. The string representation occupies more bits but
       it is human-readable
 
-  ![string-enum.png](images/enumtype/string-enum.png)
+  ![string-enum.png](../images/enumtype/string-enum.png)
 
     - with `EnumType.ORDINAL` by which the enum is stored as an int representing the literal value. The ordinal
       representation saves bites but, for a service consuming this data, it doesn’t give any way to interpret the data
@@ -791,24 +787,24 @@ An EnumType can be mapped to a database column in 3 ways:
       decoding table post_status_info we need a `@ManyToOne`association on the table containing the enum column,
       specifying that the item cannot be inserted or updated since we don't want to have two owner of the same data
 
-  ![ordinal-enum-1.png](images/enumtype/ordinal-enum-1.png)
+  ![ordinal-enum-1.png](../images/enumtype/ordinal-enum-1.png)
 
-  ![ordinal-enum-2.png](images/enumtype/ordinal-enum-2.png)
+  ![ordinal-enum-2.png](../images/enumtype/ordinal-enum-2.png)
 
 - Creating a custom type (if the db vendor permits it) like the PostgreSQL EnumType, by which the database will be able
   to store the string value of the enum while reducing the space required in comparison to the varchar implementation
   required in EnumType.STRING
 
-  ![psql-enum-create.png](images/enumtype/psql-enum-create.png)
+  ![psql-enum-create.png](../images/enumtype/psql-enum-create.png)
 
   Since Hibernate is not aware of the custom enum type we need to explicitly state its definition programmatically
 
-  ![psql-enum.png](images/enumtype/psql-enum.png)
+  ![psql-enum.png](../images/enumtype/psql-enum.png)
 
   And create a custom class that extends the default Hibernate EnumType, overriding the nullSafeSet method that is
   responsible for binding the enum type as a jdbc-prepared statement parameter
 
-  ![psql-custom-type.png](images/enumtype/psql-custom-type.png)
+  ![psql-custom-type.png](../images/enumtype/psql-custom-type.png)
 
 ---
 
@@ -838,7 +834,7 @@ JPA inheritance mapping models:
 
 ## Single table inheritance
 
-![](./images/inheritance/single-table.png)
+![](../images/inheritance/single-table.png)
 
 Pros: query efficiency, since we have one single table to query
 
@@ -871,7 +867,7 @@ public class Topic {
 
 ## Joined inheritance
 
-![](./images/inheritance/join-table.png)
+![](../images/inheritance/join-table.png)
 
 Pros: Explicit representation of the child entities and consistency in nullability
 
@@ -889,7 +885,7 @@ execution plan.
 
 ## Table per class
 
-![](./images/inheritance/table-per-class.png)
+![](../images/inheritance/table-per-class.png)
 
 N.B. Identity generation strategy is not allowed since it can't guarantee unique identifier between parent and children
 entities and this will generate conflicts in polymorphic queries which needs a way to provide unique results
@@ -906,7 +902,7 @@ plus their specifics ones. There is no foreign key neither between parent and ch
 
 ## `@MappedSuperclass`
 
-![](./images/inheritance/mapped.png)
+![](../images/inheritance/mapped.png)
 
 Pros: Efficient read and write operations
 
