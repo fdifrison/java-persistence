@@ -1,47 +1,51 @@
 <H1>Java Persistence Theory</H1>
 
 <!-- TOC -->
-
 * [Connections](#connections)
 * [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
-    * [Caching](#caching)
-    * [Entity state transitions](#entity-state-transitions)
-        * [JPA EntityManager](#jpa-entitymanager)
-        * [Hibernate Session](#hibernate-session)
-    * [Dirty checking](#dirty-checking)
-        * [Bytecode enhancement](#bytecode-enhancement)
-    * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
-    * [Flushing](#flushing)
-        * [AUTO flushing mode](#auto-flushing-mode)
-        * [Flushing in batch processing](#flushing-in-batch-processing)
-    * [Events and event listener](#events-and-event-listener)
+  * [Caching](#caching)
+  * [Entity state transitions](#entity-state-transitions)
+    * [JPA EntityManager](#jpa-entitymanager)
+    * [Hibernate Session](#hibernate-session)
+  * [Dirty checking](#dirty-checking)
+    * [Bytecode enhancement](#bytecode-enhancement)
+  * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
+  * [Flushing](#flushing)
+    * [AUTO flushing mode](#auto-flushing-mode)
+    * [Flushing in batch processing](#flushing-in-batch-processing)
+  * [Events and event listener](#events-and-event-listener)
 * [SQL Statements: lifecycle, execution plan and caching](#sql-statements-lifecycle-execution-plan-and-caching)
-    * [Execution plan cache](#execution-plan-cache)
-    * [Prepared statement](#prepared-statement)
-    * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
+  * [Execution plan cache](#execution-plan-cache)
+  * [Prepared statement](#prepared-statement)
+  * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
+* [Batching in Hibernate](#batching-in-hibernate)
+  * [Bulking operations](#bulking-operations)
+  * [Batching in cascade](#batching-in-cascade)
+    * [DELETE cascade](#delete-cascade)
+    * [Batching on versioned entity](#batching-on-versioned-entity)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
 * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
-    * [`@ManyToOne`](#manytoone)
-        * [bidirectional](#bidirectional)
-    * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
-        * [join table](#join-table)
-            * [List vs Set Collections](#list-vs-set-collections)
-        * [`@JoinColumn`](#joincolumn)
-    * [`@OneToOne`](#onetoone)
-        * [unidirectional](#unidirectional)
-        * [bidirectional](#bidirectional-1)
-    * [`@ManyToMany`](#manytomany)
-        * [Explicit mapping](#explicit-mapping)
+  * [`@ManyToOne`](#manytoone)
+    * [bidirectional](#bidirectional)
+  * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
+    * [join table](#join-table)
+      * [List vs Set Collections](#list-vs-set-collections)
+    * [`@JoinColumn`](#joincolumn)
+  * [`@OneToOne`](#onetoone)
+    * [unidirectional](#unidirectional)
+    * [bidirectional](#bidirectional-1)
+  * [`@ManyToMany`](#manytomany)
+    * [Explicit mapping](#explicit-mapping)
 * [EnumType](#enumtype)
 * [JPA inheritance](#jpa-inheritance)
-    * [Single table inheritance](#single-table-inheritance)
-        * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
-    * [Joined inheritance](#joined-inheritance)
-    * [Table per class](#table-per-class)
-    * [`@MappedSuperclass`](#mappedsuperclass)
-
+  * [Single table inheritance](#single-table-inheritance)
+    * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
+  * [Joined inheritance](#joined-inheritance)
+  * [Table per class](#table-per-class)
+  * [`@MappedSuperclass`](#mappedsuperclass)
 <!-- TOC -->
+
 ---
 
 # Connections
@@ -378,6 +382,103 @@ is the default value for the driver's prepare threshold), the driver then sends 
 create a server-side prepared statement.
 
 ---
+
+# Batching in Hibernate
+
+To enable batching in hibernate only a single property is required (while with plain JDBC a programmatic configuration
+is required)
+
+```yaml
+hibernate.jdbc.batch_size: 5
+```
+
+This setting is configured at the `EntityManagerFactory` (or `SessionFactory`) level so it will apply to all the
+sessions the same batch size. From Hibernate 5.2 we can also set the jdbc batch size per query basis, optimizing each
+business case.
+
+```java
+// Setting the batch size to null at the end of the method, will reset the entity manager configuration for the
+// next usage of the extended entity manager
+
+@PersistenceContext(type = PeristenceContextType.Extendend)
+private EntityManager entityManager;
+
+public void batchPerQuery() {
+    entityManager.unwrap(Session.class).setJdbcBatchSize(10);
+//...
+    entityManager.unwrap(Session.class).setJdbcBatchSize(null);
+}
+```
+
+If the entity identifier use the `GenerationType.IDENTITY`, hibernate disable the batch insert since the only way to
+know the entity id, needed to construct the first-level cache entry key, is to execute the actual INSERT statement.
+
+**N.B. the restriction doesn't apply to UPDATE and DELETE statements that can still benefits of batch operation even
+with the identity primary key**
+
+## Bulking operations
+
+Batching is not the only way to execute statements on multiple rows at once; SQL offers `bulk operations` to modify a
+set of rows that satisfy a filtering criteria
+
+```sql
+-- examples
+UPDATE post
+SET version = version + 1;
+DELETE
+FROM post
+WHERE version > 1;
+```
+
+**N.B. operating on too many entities at once, especially in a highly concurrent environment, can be a problem both for
+batching and bulk operations, since we are performing long-running transaction that will block any other write operation
+**
+
+## Batching in cascade
+
+Imagine a parent entity with a `@OneToMany` mapping and `CascadeType.ALL` (e.g. post and post_comment); even if we
+enable batch operations and try to insert multiple post with associated post_comments, hibernate will execute separately
+one insert statement for each entity persisted; this because JDBC batching requires executing the same
+`PreparedStatement` over and over, but in this case the insert of a post in followed by the insert of a post_comment and
+therefore the batch needs to be flushed prior to switching to the next post entity.
+
+To solve this we need to enable another property that tells hibernate to sort the type of statements while making sure
+that the parent-child integrity is preserved.
+
+```yaml
+hibernate.order_insert: true
+hibernate.order_updates: true
+```
+
+**N.B the same applies to batch UPDATE**
+
+### DELETE cascade
+
+Unlike INSERT and UPDATE statements, there is no property to sort DELETE statements in batch operations when cascading
+deletes applies. However, there are some workarounds:
+
+* delete all the child entities and then flux the persistence context before removing the parent entities
+* bulk deleting the child entities (this implies to change the cascade type to only `PERSIST` and `MERGE` which has also
+  the benefit of a faster flushing operation since the persistence context doesn't need to propagate the delete
+  statement to the child entities)
+* (BEST APPROACH) delegating the DELETE of the child entity to the database engine by adding a database-level directive
+  of cascade delete on the foreign key 
+  ```sql
+  alter table post_comment
+  add constraint fk_post_comment_post
+  foreign key (post_id) references post on delete cascade
+  ```
+
+### Batching on versioned entity
+
+Prior to Hibernate 5 or when using Oracle < 12c it was not possible to perform batch operations on entity with a
+`@Version` field, since, due to some old JDBC driver logics, it would incur in an `OptimistickLockException` or
+`StaleObjectStateException` due to a mismatch in the entity update count.
+
+To solve this, since hibernate 5 the property `hibernate.jdbc.batch:versioned_data` is set to **true** by default.
+
+
+___
 
 # Primary Keys and JPA identifiers
 
