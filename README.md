@@ -15,6 +15,7 @@ the correct spring profile (it has to match the one requested in the context of 
 ---
 
 # Theory
+
 <!-- TOC -->
 * [Theory](#theory)
 * [Connections](#connections)
@@ -43,6 +44,8 @@ the correct spring profile (it has to match the one requested in the context of 
   * [Default UPDATE behavior](#default-update-behavior)
 * [Projections](#projections)
   * [Tuple](#tuple)
+  * [DTO](#dto)
+    * [mapping native SQL queries](#mapping-native-sql-queries)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
 * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
@@ -75,7 +78,9 @@ the correct spring profile (it has to match the one requested in the context of 
   * [Hibernate-Specific Annotations](#hibernate-specific-annotations)
   * [Validation Annotations](#validation-annotations)
 <!-- TOC -->
+
 ---
+
 
 # Connections
 
@@ -541,6 +546,9 @@ A projection is the operation of fetching a subset of an entity's columns and st
 Limiting the number of columns retrieved can be beneficial in terms of performance since only the data required by the
 business case are fetched.
 
+
+## JPA projections
+
 By default, in plain JPA, a projection is represented by a Java `Object[]` where the selected columns, retrieved by the
 `ResultSet` for each row, are stored in the order of the SELECT clause. This applies to any JPA Query, be it JPQL,
 Criteria API or native SQL query
@@ -555,7 +563,7 @@ List<Object[]> tuples = entityManager.createQuery("""
         .getResultList();
 ```
 
-## Tuple
+### Tuple
 
 From JPA 2.0 the support for `Tuple` projections was added; Tuples container are essentially a map that store the column
 name as key. One of the benefit is that we can access the records by column name instead of column position, therefore
@@ -569,11 +577,119 @@ List<Tuple> tuples = entityManager.createQuery("""
                    p.title as title
                 from Post p
                 """, Tuple.class)
-            .getResultList();
+        .getResultList();
 
 long id = tuple.get("id", Number.class).longValue();
 String title = tuple.get("title", String.class);
 ```
+
+### DTO
+
+The main disadvantage of `Objects[]` and `Tuples` is that the returned values are not typesafe; to solve this issue we
+can use DTO projects that are essentially Java POJO class which maps only the desired columns. DTO class needs to have
+field types that can be associated with the expected SQL types returned and a constructor matching the SELECT clause of
+the query that is going to be projected.
+
+```java
+public class PostDTO {
+
+    private final Long id;
+
+    private final String title;
+
+    public PostDTO(Number id, String title) {
+        this.id = id.longValue(); // some database engine might return a BigInteger instead of a Long
+        this.title = title;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+}
+
+List<PostDTO> postDTOs = entityManager.createQuery("""
+                select new com.vladmihalcea.hpjp.hibernate.forum.dto.PostDTO(
+                    p.id,
+                    p.title
+                )
+                from Post p
+                """, PostDTO.class)
+        .getResultList();
+```
+
+By default, we need to reference the DTO projection with the full package name in the query; to solve this, improving
+readability and allowing to move the DTOs from one package to another freely, we can use the Hibernate
+`ClassImportIntegrator` to register our DTOs, by supplying the configuration to the `hibernate.integrator_provider`.
+
+```java
+import java.util.Properties;
+
+public void additionalProperties(Properties properties) {
+    properties.put(
+            "hibernate.integrator_provider",
+            (IntegratorProvider) () -> Collections.singletonList(
+                    new ClassImportIntegrator(
+                            List.of(
+                                    PostDTO.class,
+                                    PostRecord.class
+                            )
+                    ).excludePath("com.vladmihalcea.hpjp.hibernate") // in case of conflicting DTOs name we can narrow down the hibernate registration by specifying the base package path to exclude
+            )
+    );
+}
+```
+
+By doing so we are able to use the simple class name of the DTO in the JPQL query.
+
+#### mapping native SQL queries
+
+However, DTO projects will work out of the box only with JPQL queries and not with native SQL queries. To work with the
+latter there is a qute verbose fallback plan consisting in the use of a specific `@SqlResultSetMapping` and a
+`@NamedNativeQuery` on top of the specific entity we want to map.
+
+```java
+
+@NamedNativeQuery(
+        name = "PostDTONativeQuery",
+        query = """
+                SELECT
+                   p.id AS id,
+                   p.title AS title
+                FROM post p
+                """,
+        resultSetMapping = "PostDTOMapping"
+)
+@SqlResultSetMapping(
+        name = "PostDTOMapping",
+        classes = @ConstructorResult(
+                targetClass = PostDTO.class,
+                columns = {
+                        @ColumnResult(name = "id"),
+                        @ColumnResult(name = "title")
+                }
+        )
+)
+@Entity(name = "Post")
+@Table(name = "post")
+public class Post {
+    // ...
+}
+```
+
+where the SQL query needs to use the same column aliases that are expected by the `@ConstructorResult` mapping. To then
+execute a named query, be it native or not, we use the entity manager `.createNamedQuery` method:
+
+```java
+var postDTOs = entityManager.createNamedQuery("PostDTOEntityQuery", PostDTO.class).getResultList();
+```
+
+**N.B. DTOs projection is perfectly suited for the use of Java Records as POJO**
+
+## Hibernate projections
 
 
 
@@ -991,108 +1107,107 @@ possible, since the inheritance hierarchy exist only at the application level.
 
 ---
 
-
 # Spring Data, JPA, and Hibernate Annotations Reference
 
 ## Entity Annotations
 
-| Annotation | Package | Description |
-|------------|---------|-------------|
-| `@Entity` | `jakarta.persistence` | Marks a class as an entity (i.e., a persistent domain object). Required for JPA entities. |
-| `@Table` | `jakarta.persistence` | Specifies the table name for the entity. Optional if entity name matches table name. |
-| `@Id` | `jakarta.persistence` | Marks a field as the primary key. |
+| Annotation        | Package               | Description                                                                                                       |
+|-------------------|-----------------------|-------------------------------------------------------------------------------------------------------------------|
+| `@Entity`         | `jakarta.persistence` | Marks a class as an entity (i.e., a persistent domain object). Required for JPA entities.                         |
+| `@Table`          | `jakarta.persistence` | Specifies the table name for the entity. Optional if entity name matches table name.                              |
+| `@Id`             | `jakarta.persistence` | Marks a field as the primary key.                                                                                 |
 | `@GeneratedValue` | `jakarta.persistence` | Specifies strategy for generating primary key values. Common strategies: `AUTO`, `IDENTITY`, `SEQUENCE`, `TABLE`. |
-| `@Column` | `jakarta.persistence` | Specifies column mapping details (name, nullable, unique, length, etc.). |
-| `@Transient` | `jakarta.persistence` | Marks a field as non-persistent (i.e., not stored in database). |
-| `@Temporal` | `jakarta.persistence` | Specifies temporal precision for date/time fields (`DATE`, `TIME`, `TIMESTAMP`). |
-| `@Enumerated` | `jakarta.persistence` | Specifies how to persist enum values (`STRING` or `ORDINAL`). |
-| `@Lob` | `jakarta.persistence` | Marks a field as Large Object (for storing large data like text or binary content). |
+| `@Column`         | `jakarta.persistence` | Specifies column mapping details (name, nullable, unique, length, etc.).                                          |
+| `@Transient`      | `jakarta.persistence` | Marks a field as non-persistent (i.e., not stored in database).                                                   |
+| `@Temporal`       | `jakarta.persistence` | Specifies temporal precision for date/time fields (`DATE`, `TIME`, `TIMESTAMP`).                                  |
+| `@Enumerated`     | `jakarta.persistence` | Specifies how to persist enum values (`STRING` or `ORDINAL`).                                                     |
+| `@Lob`            | `jakarta.persistence` | Marks a field as Large Object (for storing large data like text or binary content).                               |
 
 ## Relationship Annotations
 
-| Annotation | Package | Description |
-|------------|---------|-------------|
-| `@OneToOne` | `jakarta.persistence` | Defines a one-to-one relationship between entities. |
-| `@OneToMany` | `jakarta.persistence` | Defines a one-to-many relationship between entities. |
-| `@ManyToOne` | `jakarta.persistence` | Defines a many-to-one relationship between entities. |
-| `@ManyToMany` | `jakarta.persistence` | Defines a many-to-many relationship between entities. |
-| `@JoinColumn` | `jakarta.persistence` | Specifies the foreign key column in relationships. |
-| `@JoinTable` | `jakarta.persistence` | Specifies the join table for `@ManyToMany` relationships. |
-| `@ForeignKey` | `org.hibernate.annotations` | Defines the constraint for a foreign key. |
-| `@MapsId` | `jakarta.persistence` | Maps a relationship to use the identifier of the related entity. |
+| Annotation    | Package                     | Description                                                      |
+|---------------|-----------------------------|------------------------------------------------------------------|
+| `@OneToOne`   | `jakarta.persistence`       | Defines a one-to-one relationship between entities.              |
+| `@OneToMany`  | `jakarta.persistence`       | Defines a one-to-many relationship between entities.             |
+| `@ManyToOne`  | `jakarta.persistence`       | Defines a many-to-one relationship between entities.             |
+| `@ManyToMany` | `jakarta.persistence`       | Defines a many-to-many relationship between entities.            |
+| `@JoinColumn` | `jakarta.persistence`       | Specifies the foreign key column in relationships.               |
+| `@JoinTable`  | `jakarta.persistence`       | Specifies the join table for `@ManyToMany` relationships.        |
+| `@ForeignKey` | `org.hibernate.annotations` | Defines the constraint for a foreign key.                        |
+| `@MapsId`     | `jakarta.persistence`       | Maps a relationship to use the identifier of the related entity. |
 
 ## Inheritance Annotations
 
-| Annotation | Package | Description |
-|------------|---------|-------------|
-| `@Inheritance` | `jakarta.persistence` | Specifies inheritance strategy for entity class hierarchies: `SINGLE_TABLE`, `JOINED`, or `TABLE_PER_CLASS`. |
-| `@DiscriminatorColumn` | `jakarta.persistence` | Specifies the discriminator column for `SINGLE_TABLE` inheritance strategy. |
-| `@DiscriminatorValue` | `jakarta.persistence` | Specifies the discriminator value for a specific entity in the hierarchy. |
-| `@MappedSuperclass` | `jakarta.persistence` | Marks a class as a mapped superclass (not an entity itself, but provides persistent properties to subclasses). |
+| Annotation             | Package               | Description                                                                                                    |
+|------------------------|-----------------------|----------------------------------------------------------------------------------------------------------------|
+| `@Inheritance`         | `jakarta.persistence` | Specifies inheritance strategy for entity class hierarchies: `SINGLE_TABLE`, `JOINED`, or `TABLE_PER_CLASS`.   |
+| `@DiscriminatorColumn` | `jakarta.persistence` | Specifies the discriminator column for `SINGLE_TABLE` inheritance strategy.                                    |
+| `@DiscriminatorValue`  | `jakarta.persistence` | Specifies the discriminator value for a specific entity in the hierarchy.                                      |
+| `@MappedSuperclass`    | `jakarta.persistence` | Marks a class as a mapped superclass (not an entity itself, but provides persistent properties to subclasses). |
 
 ## Query Annotations
 
-| Annotation | Package | Description |
-|------------|---------|-------------|
-| `@Query` | `org.springframework.data.jpa.repository` | Defines a custom JPQL or native SQL query for repository methods. |
-| `@Procedure` | `org.springframework.data.jpa.repository` | Maps a repository method to a stored procedure. |
-| `@Modifying` | `org.springframework.data.jpa.repository` | Indicates that a query method should modify data (UPDATE or DELETE). |
-| `@NamedQuery` | `jakarta.persistence` | Defines a named JPQL query at the entity level. |
-| `@NamedNativeQuery` | `jakarta.persistence` | Defines a named native SQL query at the entity level. |
-| `@QueryHints` | `org.springframework.data.jpa.repository` | Applies JPA query hints to the query. |
-| `@Lock` | `org.springframework.data.jpa.repository` | Specifies the lock mode for the query. |
+| Annotation          | Package                                   | Description                                                          |
+|---------------------|-------------------------------------------|----------------------------------------------------------------------|
+| `@Query`            | `org.springframework.data.jpa.repository` | Defines a custom JPQL or native SQL query for repository methods.    |
+| `@Procedure`        | `org.springframework.data.jpa.repository` | Maps a repository method to a stored procedure.                      |
+| `@Modifying`        | `org.springframework.data.jpa.repository` | Indicates that a query method should modify data (UPDATE or DELETE). |
+| `@NamedQuery`       | `jakarta.persistence`                     | Defines a named JPQL query at the entity level.                      |
+| `@NamedNativeQuery` | `jakarta.persistence`                     | Defines a named native SQL query at the entity level.                |
+| `@QueryHints`       | `org.springframework.data.jpa.repository` | Applies JPA query hints to the query.                                |
+| `@Lock`             | `org.springframework.data.jpa.repository` | Specifies the lock mode for the query.                               |
 
 ## Spring Data Repository Annotations
 
-| Annotation | Package | Description |
-|------------|---------|-------------|
-| `@Repository` | `org.springframework.stereotype` | Marks a class as a repository, eligible for Spring exception translation. |
-| `@RepositoryDefinition` | `org.springframework.data.repository` | Creates a custom repository interface without extending standard interfaces. |
-| `@NoRepositoryBean` | `org.springframework.data.repository` | Indicates that an interface should not be instantiated as a repository. |
-| `@Param` | `org.springframework.data.repository` | Binds method parameters to query parameters in custom queries. |
-| `@EnableJpaRepositories` | `org.springframework.data.jpa.repository.config` | Enables JPA repositories in Spring Boot application. |
+| Annotation               | Package                                          | Description                                                                  |
+|--------------------------|--------------------------------------------------|------------------------------------------------------------------------------|
+| `@Repository`            | `org.springframework.stereotype`                 | Marks a class as a repository, eligible for Spring exception translation.    |
+| `@RepositoryDefinition`  | `org.springframework.data.repository`            | Creates a custom repository interface without extending standard interfaces. |
+| `@NoRepositoryBean`      | `org.springframework.data.repository`            | Indicates that an interface should not be instantiated as a repository.      |
+| `@Param`                 | `org.springframework.data.repository`            | Binds method parameters to query parameters in custom queries.               |
+| `@EnableJpaRepositories` | `org.springframework.data.jpa.repository.config` | Enables JPA repositories in Spring Boot application.                         |
 
 ## Transaction Annotations
 
-| Annotation | Package | Description |
-|------------|---------|-------------|
+| Annotation       | Package                                      | Description                                                            |
+|------------------|----------------------------------------------|------------------------------------------------------------------------|
 | `@Transactional` | `org.springframework.transaction.annotation` | Declares transaction boundaries and attributes for methods or classes. |
-| `@Rollback` | `org.springframework.test.annotation` | Specifies whether a test-managed transaction should be rolled back. |
-| `@Commit` | `org.springframework.test.annotation` | Specifies that a test-managed transaction should be committed. |
+| `@Rollback`      | `org.springframework.test.annotation`        | Specifies whether a test-managed transaction should be rolled back.    |
+| `@Commit`        | `org.springframework.test.annotation`        | Specifies that a test-managed transaction should be committed.         |
 
 ## Auditing Annotations
 
-| Annotation | Package | Description |
-|------------|---------|-------------|
-| `@CreatedDate` | `org.springframework.data.annotation` | Marks a field to be set with creation timestamp. |
-| `@LastModifiedDate` | `org.springframework.data.annotation` | Marks a field to be set with last modification timestamp. |
-| `@CreatedBy` | `org.springframework.data.annotation` | Marks a field to be set with the creator's ID. |
-| `@LastModifiedBy` | `org.springframework.data.annotation` | Marks a field to be set with the last modifier's ID. |
-| `@EnableJpaAuditing` | `org.springframework.data.jpa.repository.config` | Enables JPA auditing in Spring Boot application. |
+| Annotation           | Package                                          | Description                                               |
+|----------------------|--------------------------------------------------|-----------------------------------------------------------|
+| `@CreatedDate`       | `org.springframework.data.annotation`            | Marks a field to be set with creation timestamp.          |
+| `@LastModifiedDate`  | `org.springframework.data.annotation`            | Marks a field to be set with last modification timestamp. |
+| `@CreatedBy`         | `org.springframework.data.annotation`            | Marks a field to be set with the creator's ID.            |
+| `@LastModifiedBy`    | `org.springframework.data.annotation`            | Marks a field to be set with the last modifier's ID.      |
+| `@EnableJpaAuditing` | `org.springframework.data.jpa.repository.config` | Enables JPA auditing in Spring Boot application.          |
 
 ## Hibernate-Specific Annotations
 
-| Annotation | Package | Description |
-|------------|---------|-------------|
-| `@Formula` | `org.hibernate.annotations` | Defines a SQL expression to compute a column value. |
-| `@Where` | `org.hibernate.annotations` | Adds an SQL WHERE clause to an entity or collection mapping. |
-| `@Filter` | `org.hibernate.annotations` | Enables dynamic filtering of query results. |
-| `@FilterDef` | `org.hibernate.annotations` | Defines a named filter with parameters. |
-| `@Cache` | `org.hibernate.annotations` | Specifies caching strategy for an entity or collection. |
-| `@DynamicUpdate` | `org.hibernate.annotations` | Instructs Hibernate to include only changed columns in the UPDATE statement. |
-| `@DynamicInsert` | `org.hibernate.annotations` | Instructs Hibernate to include only non-null columns in the INSERT statement. |
-| `@OptimisticLocking` | `org.hibernate.annotations` | Specifies the optimistic locking strategy. |
-| `@NaturalId` | `org.hibernate.annotations` | Marks properties that form a natural ID. |
-| `@Immutable` | `org.hibernate.annotations` | Marks an entity or collection as immutable (read-only). |
+| Annotation           | Package                     | Description                                                                   |
+|----------------------|-----------------------------|-------------------------------------------------------------------------------|
+| `@Formula`           | `org.hibernate.annotations` | Defines a SQL expression to compute a column value.                           |
+| `@Where`             | `org.hibernate.annotations` | Adds an SQL WHERE clause to an entity or collection mapping.                  |
+| `@Filter`            | `org.hibernate.annotations` | Enables dynamic filtering of query results.                                   |
+| `@FilterDef`         | `org.hibernate.annotations` | Defines a named filter with parameters.                                       |
+| `@Cache`             | `org.hibernate.annotations` | Specifies caching strategy for an entity or collection.                       |
+| `@DynamicUpdate`     | `org.hibernate.annotations` | Instructs Hibernate to include only changed columns in the UPDATE statement.  |
+| `@DynamicInsert`     | `org.hibernate.annotations` | Instructs Hibernate to include only non-null columns in the INSERT statement. |
+| `@OptimisticLocking` | `org.hibernate.annotations` | Specifies the optimistic locking strategy.                                    |
+| `@NaturalId`         | `org.hibernate.annotations` | Marks properties that form a natural ID.                                      |
+| `@Immutable`         | `org.hibernate.annotations` | Marks an entity or collection as immutable (read-only).                       |
 
 ## Validation Annotations
 
-| Annotation | Package | Description |
-|------------|---------|-------------|
-| `@NotNull` | `jakarta.validation.constraints` | Ensures a field is not null. |
-| `@Size` | `jakarta.validation.constraints` | Validates that the size of a string, collection, or array is within boundaries. |
-| `@Min` | `jakarta.validation.constraints` | Validates that a number is greater than or equal to the value. |
-| `@Max` | `jakarta.validation.constraints` | Validates that a number is less than or equal to the value. |
-| `@Pattern` | `jakarta.validation.constraints` | Validates that a string matches a regex pattern. |
-| `@Email` | `jakarta.validation.constraints` | Validates that a string is a valid email address. |
-| `@Valid` | `jakarta.validation` | Cascades validation to associated objects. |
+| Annotation | Package                          | Description                                                                     |
+|------------|----------------------------------|---------------------------------------------------------------------------------|
+| `@NotNull` | `jakarta.validation.constraints` | Ensures a field is not null.                                                    |
+| `@Size`    | `jakarta.validation.constraints` | Validates that the size of a string, collection, or array is within boundaries. |
+| `@Min`     | `jakarta.validation.constraints` | Validates that a number is greater than or equal to the value.                  |
+| `@Max`     | `jakarta.validation.constraints` | Validates that a number is less than or equal to the value.                     |
+| `@Pattern` | `jakarta.validation.constraints` | Validates that a string matches a regex pattern.                                |
+| `@Email`   | `jakarta.validation.constraints` | Validates that a string is a valid email address.                               |
+| `@Valid`   | `jakarta.validation`             | Cascades validation to associated objects.                                      |
