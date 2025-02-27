@@ -3,7 +3,7 @@ databaseChangeLog:
       path: db/changelog/single_table
       context: single_table
   - includeAll:
-      path: db/changelog/joined
+      path: db/changelog/projection
       context: projection
   - includeAll:
       path: db/changelog/table_per_class
