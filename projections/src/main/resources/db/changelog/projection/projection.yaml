@@ -1,0 +1,52 @@
+databaseChangeLog:
+  - context: projection
+  - changeSet:
+      id: 0
+      author: giovanni frison
+      changes:
+        - createTable:
+            tableName: post
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: title
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created
+                  type: java.sql.types.timestamp_with_timezone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: image
+                  type: bytea
+        - createTable:
+            tableName: comment
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: comment
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: image
+                  type: bytea
+              - column:
+                  name: post_id
+                  type: bigint
+                  constraints:
+                    foreignKeyName: comment_post_id
+                    referencedTableName: post
+                    referencedColumnNames: id
