@@ -1,5 +1,5 @@
 databaseChangeLog:
-  - context: joined
+  - context: projection
   - changeSet:
       id: 0
       author: giovanni frison

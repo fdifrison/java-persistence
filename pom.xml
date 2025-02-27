@@ -18,6 +18,7 @@
     <modules>
         <module>entity-relationship</module>
         <module>inheritance</module>
+        <module>projections</module>
     </modules>
 
     <properties>

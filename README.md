@@ -17,70 +17,71 @@ the correct spring profile (it has to match the one requested in the context of 
 # Theory
 
 <!-- TOC -->
+
 * [Theory](#theory)
 * [Connections](#connections)
 * [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
-  * [Caching](#caching)
-  * [Entity state transitions](#entity-state-transitions)
-    * [JPA EntityManager](#jpa-entitymanager)
-    * [Hibernate Session](#hibernate-session)
-      * [JPA merge vs Hibernate update](#jpa-merge-vs-hibernate-update)
-  * [Dirty checking](#dirty-checking)
-    * [Bytecode enhancement](#bytecode-enhancement)
-  * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
-  * [Flushing](#flushing)
-    * [AUTO flushing mode](#auto-flushing-mode)
-    * [Flushing in batch processing](#flushing-in-batch-processing)
-  * [Events and event listener](#events-and-event-listener)
+    * [Caching](#caching)
+    * [Entity state transitions](#entity-state-transitions)
+        * [JPA EntityManager](#jpa-entitymanager)
+        * [Hibernate Session](#hibernate-session)
+            * [JPA merge vs Hibernate update](#jpa-merge-vs-hibernate-update)
+    * [Dirty checking](#dirty-checking)
+        * [Bytecode enhancement](#bytecode-enhancement)
+    * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
+    * [Flushing](#flushing)
+        * [AUTO flushing mode](#auto-flushing-mode)
+        * [Flushing in batch processing](#flushing-in-batch-processing)
+    * [Events and event listener](#events-and-event-listener)
 * [SQL Statements: lifecycle, execution plan and caching](#sql-statements-lifecycle-execution-plan-and-caching)
-  * [Execution plan cache](#execution-plan-cache)
-  * [Prepared statement](#prepared-statement)
-  * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
+    * [Execution plan cache](#execution-plan-cache)
+    * [Prepared statement](#prepared-statement)
+    * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
 * [Batching in Hibernate](#batching-in-hibernate)
-  * [Bulking operations](#bulking-operations)
-  * [Batching in cascade](#batching-in-cascade)
-    * [DELETE cascade](#delete-cascade)
-    * [Batching on versioned entity](#batching-on-versioned-entity)
-  * [Default UPDATE behavior](#default-update-behavior)
+    * [Bulking operations](#bulking-operations)
+    * [Batching in cascade](#batching-in-cascade)
+        * [DELETE cascade](#delete-cascade)
+        * [Batching on versioned entity](#batching-on-versioned-entity)
+    * [Default UPDATE behavior](#default-update-behavior)
 * [Projections](#projections)
-  * [Tuple](#tuple)
-  * [DTO](#dto)
-    * [mapping native SQL queries](#mapping-native-sql-queries)
+    * [Tuple](#tuple)
+    * [DTO](#dto)
+        * [mapping native SQL queries](#mapping-native-sql-queries)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
 * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
-  * [`@ManyToOne`](#manytoone)
-    * [bidirectional](#bidirectional)
-  * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
-    * [join table](#join-table)
-      * [List vs Set Collections](#list-vs-set-collections)
-    * [`@JoinColumn`](#joincolumn)
-  * [`@OneToOne`](#onetoone)
-    * [unidirectional](#unidirectional)
-    * [bidirectional](#bidirectional-1)
-  * [`@ManyToMany`](#manytomany)
-    * [Explicit mapping](#explicit-mapping)
+    * [`@ManyToOne`](#manytoone)
+        * [bidirectional](#bidirectional)
+    * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
+        * [join table](#join-table)
+            * [List vs Set Collections](#list-vs-set-collections)
+        * [`@JoinColumn`](#joincolumn)
+    * [`@OneToOne`](#onetoone)
+        * [unidirectional](#unidirectional)
+        * [bidirectional](#bidirectional-1)
+    * [`@ManyToMany`](#manytomany)
+        * [Explicit mapping](#explicit-mapping)
 * [EnumType](#enumtype)
 * [JPA inheritance](#jpa-inheritance)
-  * [Single table inheritance](#single-table-inheritance)
-    * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
-  * [Joined inheritance](#joined-inheritance)
-  * [Table per class](#table-per-class)
-  * [`@MappedSuperclass`](#mappedsuperclass)
+    * [Single table inheritance](#single-table-inheritance)
+        * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
+    * [Joined inheritance](#joined-inheritance)
+    * [Table per class](#table-per-class)
+    * [`@MappedSuperclass`](#mappedsuperclass)
 * [Spring Data, JPA, and Hibernate Annotations Reference](#spring-data-jpa-and-hibernate-annotations-reference)
-  * [Entity Annotations](#entity-annotations)
-  * [Relationship Annotations](#relationship-annotations)
-  * [Inheritance Annotations](#inheritance-annotations)
-  * [Query Annotations](#query-annotations)
-  * [Spring Data Repository Annotations](#spring-data-repository-annotations)
-  * [Transaction Annotations](#transaction-annotations)
-  * [Auditing Annotations](#auditing-annotations)
-  * [Hibernate-Specific Annotations](#hibernate-specific-annotations)
-  * [Validation Annotations](#validation-annotations)
+    * [Entity Annotations](#entity-annotations)
+    * [Relationship Annotations](#relationship-annotations)
+    * [Inheritance Annotations](#inheritance-annotations)
+    * [Query Annotations](#query-annotations)
+    * [Spring Data Repository Annotations](#spring-data-repository-annotations)
+    * [Transaction Annotations](#transaction-annotations)
+    * [Auditing Annotations](#auditing-annotations)
+    * [Hibernate-Specific Annotations](#hibernate-specific-annotations)
+    * [Validation Annotations](#validation-annotations)
+
 <!-- TOC -->
 
 ---
-
 
 # Connections
 
@@ -546,7 +547,6 @@ A projection is the operation of fetching a subset of an entity's columns and st
 Limiting the number of columns retrieved can be beneficial in terms of performance since only the data required by the
 business case are fetched.
 
-
 ## JPA projections
 
 By default, in plain JPA, a projection is represented by a Java `Object[]` where the selected columns, retrieved by the
@@ -691,7 +691,8 @@ var postDTOs = entityManager.createNamedQuery("PostDTOEntityQuery", PostDTO.clas
 
 ## Hibernate projections
 
-
+Prior to version 6, Hibernate allowed to define a custom `ResultTransformer` that use a DTO to projects a resultset by
+its canonical constructor and java beans setter methods
 
 ___
 
