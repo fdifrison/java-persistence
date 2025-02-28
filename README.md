@@ -17,68 +17,69 @@ the correct spring profile (it has to match the one requested in the context of 
 # Theory
 
 <!-- TOC -->
-
 * [Theory](#theory)
 * [Connections](#connections)
 * [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
-    * [Caching](#caching)
-    * [Entity state transitions](#entity-state-transitions)
-        * [JPA EntityManager](#jpa-entitymanager)
-        * [Hibernate Session](#hibernate-session)
-            * [JPA merge vs Hibernate update](#jpa-merge-vs-hibernate-update)
-    * [Dirty checking](#dirty-checking)
-        * [Bytecode enhancement](#bytecode-enhancement)
-    * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
-    * [Flushing](#flushing)
-        * [AUTO flushing mode](#auto-flushing-mode)
-        * [Flushing in batch processing](#flushing-in-batch-processing)
-    * [Events and event listener](#events-and-event-listener)
+  * [Caching](#caching)
+  * [Entity state transitions](#entity-state-transitions)
+    * [JPA EntityManager](#jpa-entitymanager)
+    * [Hibernate Session](#hibernate-session)
+      * [JPA merge vs Hibernate update](#jpa-merge-vs-hibernate-update)
+  * [Dirty checking](#dirty-checking)
+    * [Bytecode enhancement](#bytecode-enhancement)
+  * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
+  * [Flushing](#flushing)
+    * [AUTO flushing mode](#auto-flushing-mode)
+    * [Flushing in batch processing](#flushing-in-batch-processing)
+  * [Events and event listener](#events-and-event-listener)
 * [SQL Statements: lifecycle, execution plan and caching](#sql-statements-lifecycle-execution-plan-and-caching)
-    * [Execution plan cache](#execution-plan-cache)
-    * [Prepared statement](#prepared-statement)
-    * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
+  * [Execution plan cache](#execution-plan-cache)
+  * [Prepared statement](#prepared-statement)
+  * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
 * [Batching in Hibernate](#batching-in-hibernate)
-    * [Bulking operations](#bulking-operations)
-    * [Batching in cascade](#batching-in-cascade)
-        * [DELETE cascade](#delete-cascade)
-        * [Batching on versioned entity](#batching-on-versioned-entity)
-    * [Default UPDATE behavior](#default-update-behavior)
+  * [Bulking operations](#bulking-operations)
+  * [Batching in cascade](#batching-in-cascade)
+    * [DELETE cascade](#delete-cascade)
+    * [Batching on versioned entity](#batching-on-versioned-entity)
+  * [Default UPDATE behavior](#default-update-behavior)
 * [Projections](#projections)
+  * [JPA projections](#jpa-projections)
     * [Tuple](#tuple)
     * [DTO](#dto)
-        * [mapping native SQL queries](#mapping-native-sql-queries)
+      * [mapping native SQL queries](#mapping-native-sql-queries)
+  * [Hibernate projections](#hibernate-projections)
+  * [Bets approach for projecting parent-child relationship](#bets-approach-for-projecting-parent-child-relationship)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
 * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
-    * [`@ManyToOne`](#manytoone)
-        * [bidirectional](#bidirectional)
-    * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
-        * [join table](#join-table)
-            * [List vs Set Collections](#list-vs-set-collections)
-        * [`@JoinColumn`](#joincolumn)
-    * [`@OneToOne`](#onetoone)
-        * [unidirectional](#unidirectional)
-        * [bidirectional](#bidirectional-1)
-    * [`@ManyToMany`](#manytomany)
-        * [Explicit mapping](#explicit-mapping)
+  * [`@ManyToOne`](#manytoone)
+    * [bidirectional](#bidirectional)
+  * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
+    * [join table](#join-table)
+      * [List vs Set Collections](#list-vs-set-collections)
+    * [`@JoinColumn`](#joincolumn)
+  * [`@OneToOne`](#onetoone)
+    * [unidirectional](#unidirectional)
+    * [bidirectional](#bidirectional-1)
+  * [`@ManyToMany`](#manytomany)
+    * [Explicit mapping](#explicit-mapping)
 * [EnumType](#enumtype)
 * [JPA inheritance](#jpa-inheritance)
-    * [Single table inheritance](#single-table-inheritance)
-        * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
-    * [Joined inheritance](#joined-inheritance)
-    * [Table per class](#table-per-class)
-    * [`@MappedSuperclass`](#mappedsuperclass)
+  * [Single table inheritance](#single-table-inheritance)
+    * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
+  * [Joined inheritance](#joined-inheritance)
+  * [Table per class](#table-per-class)
+  * [`@MappedSuperclass`](#mappedsuperclass)
 * [Spring Data, JPA, and Hibernate Annotations Reference](#spring-data-jpa-and-hibernate-annotations-reference)
-    * [Entity Annotations](#entity-annotations)
-    * [Relationship Annotations](#relationship-annotations)
-    * [Inheritance Annotations](#inheritance-annotations)
-    * [Query Annotations](#query-annotations)
-    * [Spring Data Repository Annotations](#spring-data-repository-annotations)
-    * [Transaction Annotations](#transaction-annotations)
-    * [Auditing Annotations](#auditing-annotations)
-    * [Hibernate-Specific Annotations](#hibernate-specific-annotations)
-    * [Validation Annotations](#validation-annotations)
-
+  * [Entity Annotations](#entity-annotations)
+  * [Relationship Annotations](#relationship-annotations)
+  * [Inheritance Annotations](#inheritance-annotations)
+  * [Query Annotations](#query-annotations)
+  * [Spring Data Repository Annotations](#spring-data-repository-annotations)
+  * [Transaction Annotations](#transaction-annotations)
+  * [Auditing Annotations](#auditing-annotations)
+  * [Hibernate-Specific Annotations](#hibernate-specific-annotations)
+  * [Validation Annotations](#validation-annotations)
 <!-- TOC -->
 
 ---
@@ -101,7 +102,7 @@ The response time is a combination of several factors:
 ![response-time.png](./images/connections/response-time.png)
 
 The most demanding operation is connection acquisition. The JDBC driver manager acts as a factory of physical database
-connection; when the application asks for a new connection from the driver, a socket is opened and a TCP connection is
+connection; when the application asks for a new connection from the driver, a socket is opened, and a TCP connection is
 established between the JDBC client and the database server (the DB will allocate a thread or a process).
 
 ![connection-lifecycle.png](./images/connections/connection-lifecycle.png)
@@ -114,7 +115,7 @@ connections that can be reused with a small overhead. Even closing a connection 
 Hibernate DatasourceConnectionProvider is the best choice among the connection pool providers since it offers the best
 control over the DataSource configuration, it supports JTA transactions (for Java EE projects), it can have as many
 proxies as we want chained (like FlexyPool for monitoring), supports also connections pool not supported natively by
-hibernate. What Hibernate sees is just a decorated Datasource.
+Hibernate. What Hibernate sees is just a decorated Datasource.
 
 <img alt="datasource-provider.png" height="200" src="./images/connections/datasource-provider.png" width="600"/>
 
@@ -123,12 +124,12 @@ hibernate. What Hibernate sees is just a decorated Datasource.
 # Persistence Context in JPA and Hibernate
 
 The persistence is responsible for managing entities once fetched from the database; we can think it as a Map where the
-key is the entity identifier and the values is the entity object reference. Its role is to synchronize the entities
+key is the entity identifier, and the values is the entity object reference. Its role is to synchronize the entities
 state change with the database.
 
 ![](./images/persistence-context/api.png)
 
-JPA offers the `EntityManager` interface to interact with the underlying persistence context, while hibernate, which
+JPA offers the `EntityManager` interface to interact with the underlying persistence context, while Hibernate, which
 predates JPA, offer the `Session interface` with the same role.
 
 ![](./images/persistence-context/entity_manager.png)
@@ -138,7 +139,7 @@ implementation, the `SessionImpl` is directly related as well. These are commonl
 
 ## Caching
 
-Once an entity is *managed* (i.e. loaded) by the persistence context it is also cached, meaning that each successive
+Once an entity is *managed* (i.e., loaded) by the persistence context, it is also cached, meaning that each successive
 request will avoid a database roundtrip.
 
 The standard caching mechanism offered by the persistence context is the so called `write-behinde` cache mechanism;
@@ -149,7 +150,7 @@ application and database.
 
 ## Entity state transitions
 
-Aside from caching entities, the persistence context manages entity state transitions; JPA and hibernates define
+Aside from caching entities, the persistence context manages entity state transitions; JPA and Hibernates define
 slightly different methods in their respective interfaces to handle state transitions.
 
 ### JPA EntityManager
@@ -157,7 +158,7 @@ slightly different methods in their respective interfaces to handle state transi
 ![](./images/persistence-context/jpa_transitions.png)
 
 * A new entity when created for the first time is in the `New` or `Transiet` state; by calling `persist` it goes into
-  `Managed` state; only at flush time a INSERT statement will be executed.
+  `Managed` state; only at flush time an INSERT statement will be executed.
 * By calling `find` (or any other retrieval method), an entity will be loaded into the persistence context in the
   `Managed` state
 * By calling `remove` on a manged entity, the entity state will change to `Removed` and a flush time this will result in
@@ -167,23 +168,24 @@ slightly different methods in their respective interfaces to handle state transi
 * To reattach a detached entity, the `merge` method must be called and, if in the persistence context there
   isn't another managed entity with the same identifier, the persistence context will fetch the entity directly from the
   database and copy on it the state of the previously detached entity;
-* There is no method in the JPA EntityManager that results in an UPDATE sql statement, this is because at flush time,
+* There is no method in the JPA EntityManager that results in an UPDATE SQL statement; this is because at flush time,
   any entity in the `Managed` state will be synchronized with the database. If the persistence context determines the
   entity changed since it was first loaded (aka `dirty checking`), then it will trigger an UPDATE statement at flush
   time.
 
 ### Hibernate Session
 
-Hibernate session adhere to the JPA standards but pre-dated it, therefore even if the same method are supported there
+Hibernate session adheres to the JPA standards but pre-dated it, therefore, even if the same methods are supported,
+there
 are some differences as well
 
-![](./images/persistence-context/hibernate_transitions.png)
+![](./images/persistence-context/Hibernate_transitions.png)
 
 * The `save` method is legacy, and unlike persist it returns the entity identifier
 * The fetching can be done not only by entity identifier but also by `naturalId`
-* The `delete` method is also a legacy one; as a matter of fact, the JPA `remove` delegates to the hibernate `delete`
+* The `delete` method is also a legacy one; as a matter of fact, the JPA `remove` delegates to the Hibernate `delete`
   method
-* To reattach a detached entity there is also the `update` method in addition to the JPA `merge`; this will change the
+* To reattach a detached entity, there is also the `update` method in addition to the JPA `merge`; this will change the
   entity state to `Managed` and schedule an UPDATE statement for the next flush operation
 
 #### JPA merge vs Hibernate update
@@ -191,18 +193,18 @@ are some differences as well
 There is a slight difference in the behavior of JPA `merge` and Hibernate `update` methods, particularly important when
 using batching. Both are used to reattach a detached entity to the persistence context and to eventually propagate the
 UPDATE statement; however, JPA `merge` executes a SELECT statement for each entity that we need to reattach while
-Hibernate `update` is more efficient since it simply reattach the detached entity without the need of N SELECT
+Hibernate `update` is more efficient since it simply reattaches the detached entity without the need of N SELECT
 statements.
 
 ## Dirty checking
 
 Dirty checking is the process of detecting entity modification happened in the persistence context; it facilitates
-greatly the operations needed at tha application level since the developer can focus on the domain models state changes
-and leave to the persistence context the generation of the underlying sql statements.
+greatly the operations needed at the application level since the developer can focus on the domain models state changes
+and leave to the persistence context the generation of the underlying SQL statements.
 
 ![](./images/persistence-context/dirty_checking.png)
 
-When the persistence context is flushed, the Hibernate Session trigger a `FlushEvent`, handled by its default event
+When the persistence context is flushed, the Hibernate Session triggers a `FlushEvent`, handled by its default event
 listener (`DefaultFlushEventListener`); For each managed entity a `FlushEntityEvent`  is triggered, handled by the
 associated event listener (`DefaultFlushEntityEventListener`) which in turn calls the `findDirty` method on the
 associated `EntityPersister`. The latter, for every entity attribute checks if the current value is changed since the
@@ -210,22 +212,22 @@ entity was first loaded in the persistence context; finally, the dirty propertie
 `FlushEntityEvent` that will schedule the required UPDATE statements.
 
 We can conclude that the number of dirty checks is proportional to the number of entities loaded in the persistence
-context, multiplied by their properties; since even if only one entity has changed, hibernate will scan the entire
+context, multiplied by their properties; since even if only one entity has changed, Hibernate will scan the entire
 context, and this can have a significant impact on CPU resources, particularly if the number of managed entities is
 large.
 
-To limit this issue we could rely on the hibernate-specific annotation `@DynamicUpdate` which limits the update to the
-columns that have effectively changed from their first fetch from the persistence context. This however will
+To limit this issue, we could rely on the Hibernate-specific annotation `@DynamicUpdate` which limits the update to the
+columns that have effectively changed from their first fetch from the persistence context. This, however, will
 automatically disable batching, even if a batch size is set.
 
 ### Bytecode enhancement
 
-It is possible to activate, at build time as a maven plugin, the hibernate bytecode enhancer tool which will allows to
-hibernate to modify the bytecode of our java class for specific needs. In the specific case, we are interested in the
-dirty tracking capability of the tool. Essentially, the hibernate enhanced class will be able to track before flushing
+It is possible to activate, at build time as a maven plugin, the Hibernate bytecode enhancer which will allow you to
+Hibernate to modify the bytecode of our java class for specific needs. In the specific case, we are interested in the
+dirty tracking capability of the tool. Essentially, the Hibernate enhanced class will be able to track before flushing
 all the changes in the entity properties and mark them for dirty checking using specific getters and setters; In this
-way, at flush time the persistence context won't need to perform the computation required for dirty checking; instead it
-will simply ask the entity to return its dirty properties since the entity already holds the states of the changed
+way, at flush time the persistence context won't need to perform the computation required for dirty checking; instead,
+it will simply ask the entity to return its dirty properties since the entity already holds the states of the changed
 properties and their name/column.
 
 **N.B. the difference in performance needs to be measured in context, and in general it will have significant effect
@@ -234,9 +236,9 @@ only when the size of the persistence context is significant.**
 ```xml
 
 <plugin>
-    <groupId>org.hibernate.orm.tooling</groupId>
-    <artifactId>hibernate-enhance-maven-plugin</artifactId>
-    <version>${hibernate.version}</version>
+    <groupId>org.Hibernate.orm.tooling</groupId>
+    <artifactId>Hibernate-enhance-maven-plugin</artifactId>
+    <version>${Hibernate.version}</version>
     <executions>
         <execution>
             <configuration>
@@ -262,14 +264,14 @@ read-only mode. This can be done at Session level (`session.setDefaultReadOnly(t
 
 **N.B. read-only queries optimize both memory (no hydration) and CPU (no dirty checking) resources.**
 
-From hibernate > 6.0, mapping the readings from JDBC has been fundamentally changed from a `read-by-name` to a [
-`read-by-position`](https://docs.jboss.org/hibernate/orm/6.0/migration-guide/migration-guide.html#type) approach,
+From Hibernate > 6.0, mapping the readings from JDBC has been fundamentally changed from a `read-by-name` to a [
+`read-by-position`](https://docs.jboss.org/Hibernate/orm/6.0/migration-guide/migration-guide.html#type) approach,
 
 ## Flushing
 
 Flushing is the act of synchronization between the in-memory information held by the persistence context and the
 underlying database. The persistence context can be flushed either manually or automatically, as a matter of fact, both
-the JPA and the hibernate interfaces define the `flush` method to synchronize the in-memory domain models with the
+the JPA and the Hibernate interfaces define the `flush` method to synchronize the in-memory domain models with the
 underlying database structure. Flush is especially important before running a query or before a transaction commit since
 it guarantees that the in-memory changes are visible; thi prevents [
 `read-your-writes`](https://arpitbhayani.me/blogs/read-your-write-consistency/) consistency issue.
@@ -283,7 +285,7 @@ capture the pending entity state changes
 
 **Hibernate flushing modes**
 
-![](./images/persistence-context/hibernate_flush.png)
+![](./images/persistence-context/Hibernate_flush.png)
 
 The `COMMIT` flush mode type is prone to inconsistency since it doesn't trigger a flush before every query that may not
 capture the pending entity state changes
@@ -293,18 +295,17 @@ capture the pending entity state changes
 ![](./images/persistence-context/auto_flush.png)
 
 JPA and Hibernate AUTO flush modes differ slightly; JPA requires a flush before each query and transaction while
-hibernate use a smarter approach (see `NativeHibernateSessionFactory`, trying to identify if the flush before the query
-execution is required. To do so, hibernate inspects the query table space affected by the incoming query, and it
+Hibernate use a smarter approach (see `NativeHibernateSessionFactory`, trying to identify if the flush before the query
+execution is required. To do so, Hibernate inspects the query table space affected by the incoming query, and it
 triggers a flush only if there is an entity in a state transition in that same query table space. This is to delay as
 much as possible the first-level cache (aka persistence context) synchronization.
 
-The problem with hibernate optimization is that it doesn't work with native query out of the box since, when a query is
-tagged as native, hibernates knows that it holds the specific dialect of the underlying database provider, and therefor
-it won't parse it (for this reason the JPA compliant implementation of the hibernate session will force a flush when it
-sees a native query, in order to be sure to maintain consistency). This result in hibernate being unable to know the
-query space of the incoming query. It is the
-developer job to instruct the query with the table space that needs to synchronized upon its execution. (
-see [hibernate-query-space](https://thorben-janssen.com/hibernate-query-spaces/)).
+The problem with Hibernate optimization is that it doesn't work with a native query out of the box since,
+when a query is tagged as native, Hibernate knows that it holds the specific dialect of the underlying database
+provider. Therefore, it won't parse it (for this reason, the JPA compliant implementation of the Hibernate session will
+force a flush when it sees a native query, to be sure to maintain consistency). This results in Hibernate being unable
+to know the query space of the incoming query. It is the developer job to instruct the query with the table space that
+needs to synchronize upon its execution. (see [Hibernate-query-space](https://thorben-janssen.com/Hibernate-query-spaces/)).
 
 An alternative is to switch to `FlushMode.ALWAYS`, which has the same behavior of the JPA `AUTO`, either at session
 level or only for the specific query.
@@ -313,16 +314,16 @@ level or only for the specific query.
 
 For standard operations, to avoid long locking time and excessive database memory consumption, JPA allows the
 persistence context to span over multiple database transactions; however, in batch processing it is very important to
-keep the persistence context within a reasonable dimension to avoid committing a single huge transaction, that also
+keep the persistence context within a reasonable dimension to avoid committing a single huge transaction that also
 might fail at the end, rollback, and invalidate all the work done. To avoid this, it's not enough to periodically flush
-anc clear the persistence context, but we need also to commit the currently running database transaction to avoid a
-single huge transaction at the end that either commit or fail and rollback.
+anc clear the persistence context. However, we need also to commit the currently running database transaction to avoid a
+single huge transaction at the end that either commits or fail and rollback.
 
 These steps are defined as `flush-clear-commit`:
 
 ```java
 private void flush(EntityManager entityManager) {
-    //Commit triggers a flush when using FlushType.AUTO, hence the sql statements batched are executed
+    //Commit triggers a flush, when using FlushType.AUTO, hence the SQL statements batched are executed
     entityManager.getTransaction().commit();
     entityManager.getTransaction().begin();
     entityManager.clear();
@@ -331,16 +332,16 @@ private void flush(EntityManager entityManager) {
 
 ## Events and event listener
 
-Hibernates internals defines, for any entity state change, specif events  (i.e. `PersistEvent`, `MergeEvent` etc...)
+Hibernates internals defines, for any entity state change, specif events (i.e. `PersistEvent`, `MergeEvent` etc...)
 associated with a default implementation of an event listener like `DefaultPersistEventListener` (these can be by custom
-implementations). In turn, the event listener translate the state change in an internal `EntityAction` that can be
+implementations). In turn, the event listener translates the state change in an internal `EntityAction` that can be
 queued in an `ActionQueue` and gets executed only at flush time. If an entity that is going to be removed has an
 association is marked with the `orphan removal strategy`, then the `EntityDeleteAction` at flush time can also generate
-an `OrphanRemovalAction` if the child entity is unreferenced; both the actions trigger a sql DELETE statement.
+an `OrphanRemovalAction` if the child entity is unreferenced; both the actions trigger a SQL DELETE statement.
 
 ![](./images/persistence-context/events.png)
 
-Toward the end of the flushing of the persistence context, hibernate will execute all the actions that have been
+Toward the end of the flushing of the persistence context, Hibernate will execute all the actions that have been
 enqueued, but in a strict specif order:
 
 * `OrphanRemovalAction`
@@ -351,12 +352,12 @@ enqueued, but in a strict specif order:
 * `CollectionRecreateAction`
 * `EntityDeleteAction`
 
-This implies that, the order of operations defined at the application level is not what then hibernate executes, unless
+This implies that, the order of operations defined at the application level is not what then Hibernate executes, unless
 we force a flush. For example if we remove an entity with a unique column and in the same context we create a new one
 with the same value for that unique field, we will incur in a `ConstrainViolationException` since as seen above, the
-delete action is the last executed by hibernate action queues, therefore he will try to create the new entity before
+delete action is the last executed by Hibernate action queues, therefore he will try to create the new entity before
 deleting the older one. The solution would be or to flush right after the calling of the remove (wrong approach) or to
-make hibernate fire an update statement by simply changing the existing entity instead of deleting it and recreating it.
+make Hibernate fire an update statement by simply changing the existing entity instead of deleting it and recreating it.
 
 **N.B avoiding manual flush we delay the connection acquisition and consequently reduce the transaction response time**
 
@@ -432,11 +433,11 @@ create a server-side prepared statement.
 
 # Batching in Hibernate
 
-To enable batching in hibernate only a single property is required (while with plain JDBC a programmatic configuration
+To enable batching in Hibernate only a single property is required (while with plain JDBC a programmatic configuration
 is required)
 
 ```yaml
-hibernate.jdbc.batch_size: 5
+Hibernate.jdbc.batch_size: 5
 ```
 
 This setting is configured at the `EntityManagerFactory` (or `SessionFactory`) level so it will apply to all the
@@ -457,7 +458,7 @@ public void batchPerQuery() {
 }
 ```
 
-If the entity identifier use the `GenerationType.IDENTITY`, hibernate disable the batch insert since the only way to
+If the entity identifier use the `GenerationType.IDENTITY`, Hibernate disable the batch insert since the only way to
 know the entity id, needed to construct the first-level cache entry key, is to execute the actual INSERT statement.
 
 **N.B. the restriction doesn't apply to UPDATE and DELETE statements that can still benefits of batch operation even
@@ -484,17 +485,17 @@ batching and bulk operations, since we are performing long-running transaction t
 ## Batching in cascade
 
 Imagine a parent entity with a `@OneToMany` mapping and `CascadeType.ALL` (e.g. post and post_comment); even if we
-enable batch operations and try to insert multiple post with associated post_comments, hibernate will execute separately
+enable batch operations and try to insert multiple post with associated post_comments, Hibernate will execute separately
 one insert statement for each entity persisted; this because JDBC batching requires executing the same
 `PreparedStatement` over and over, but in this case the insert of a post in followed by the insert of a post_comment and
 therefore the batch needs to be flushed prior to switching to the next post entity.
 
-To solve this we need to enable another property that tells hibernate to sort the type of statements while making sure
+To solve this we need to enable another property that tells Hibernate to sort the type of statements while making sure
 that the parent-child integrity is preserved.
 
 ```yaml
-hibernate.order_insert: true
-hibernate.order_updates: true
+Hibernate.order_insert: true
+Hibernate.order_updates: true
 ```
 
 **N.B the same applies to batch UPDATE**
@@ -522,11 +523,11 @@ Prior to Hibernate 5 or when using Oracle < 12c it was not possible to perform b
 `@Version` field, since, due to some old JDBC driver logics, it would incur in an `OptimistickLockException` or
 `StaleObjectStateException` due to a mismatch in the entity update count.
 
-To solve this, since hibernate 5 the property `hibernate.jdbc.batch:versioned_data` is set to **true** by default.
+To solve this, since Hibernate 5 the property `Hibernate.jdbc.batch:versioned_data` is set to **true** by default.
 
 ## Default UPDATE behavior
 
-The default UPDATE behavior consent to batch statements that modifies different columns of the same entity since all the
+The default UPDATE behavior consents to batch statements that modify different columns of the same entity since all the
 columns are sent over the network, even those which haven't been modified. This leads to a wider possibility of batching
 but with some potential disadvantages:
 
@@ -535,7 +536,7 @@ but with some potential disadvantages:
 * replication node will also be propagated with all the columns, not just those modified
 * possible accidental execution of triggers
 
-However, at the cost of disabling batching entirely for a given entity, we can mark it with the hibernate annotation
+However, at the cost of disabling batching entirely for a given entity, we can mark it with the Hibernate annotation
 `@DynamicUpdate` which will select only the modified columns over the network. This will disable batching because a
 change in the binding parameters effectively results in a different prepared statement.
 
@@ -612,7 +613,7 @@ public class PostDTO {
 }
 
 List<PostDTO> postDTOs = entityManager.createQuery("""
-                select new com.vladmihalcea.hpjp.hibernate.forum.dto.PostDTO(
+                select new com.vladmihalcea.hpjp.Hibernate.forum.dto.PostDTO(
                     p.id,
                     p.title
                 )
@@ -623,21 +624,21 @@ List<PostDTO> postDTOs = entityManager.createQuery("""
 
 By default, we need to reference the DTO projection with the full package name in the query; to solve this, improving
 readability and allowing to move the DTOs from one package to another freely, we can use the Hibernate
-`ClassImportIntegrator` to register our DTOs, by supplying the configuration to the `hibernate.integrator_provider`.
+`ClassImportIntegrator` to register our DTOs, by supplying the configuration to the `Hibernate.integrator_provider`.
 
 ```java
 import java.util.Properties;
 
 public void additionalProperties(Properties properties) {
     properties.put(
-            "hibernate.integrator_provider",
+            "Hibernate.integrator_provider",
             (IntegratorProvider) () -> Collections.singletonList(
                     new ClassImportIntegrator(
                             List.of(
                                     PostDTO.class,
                                     PostRecord.class
                             )
-                    ).excludePath("com.vladmihalcea.hpjp.hibernate") // in case of conflicting DTOs name we can narrow down the hibernate registration by specifying the base package path to exclude
+                    ).excludePath("com.vladmihalcea.hpjp.Hibernate") // in case of conflicting DTOs name we can narrow down the Hibernate registration by specifying the base package path to exclude
             )
     );
 }
@@ -848,20 +849,20 @@ when the rows are removed, and then we are re-added.
 If there is a meaning of ordering in the join column we could use the `List` collection together with the `@OrderColumn`
 annotation to reduce the burden of using lists; in this way, if we want to remove the last element only two delete
 statement are executed, one for the join table and one for the child table. However, if we are not removing the last
-element, hibernate will execute an update statement for each row that will be shifted.
+element, Hibernate will execute an update statement for each row that will be shifted.
 
 ### `@JoinColumn`
 
 An alternative, that requires the child-entity to hold a reference to the parent, is to annotate the parent-side
 collection with the `@JoinColumn` annotation. However, this approach is also inefficient since for persisting elements
-in the parent side collection hibernate will have to issue and insert statement and an update for each element
+in the parent side collection Hibernate will have to issue and insert statement and an update for each element
 persisted. The update is required since the child entity is flushed before the parent-side collection, therefore,
-hibernate has no clue about the foreign key value, hence an update is required to set the foreign key. If the option
-`nullable=false` is specified in the `@JoinColumn` annotation, hibernate will flush the child entity with the foreign
+Hibernate has no clue about the foreign key value, hence an update is required to set the foreign key. If the option
+`nullable=false` is specified in the `@JoinColumn` annotation, Hibernate will flush the child entity with the foreign
 key populated, but it will issue an update statement anyway.
 
 Similarly, deleting an element from the parent-side collection has bad performance if the `nullable=false` is not set,
-hibernate will first fire an update statement on the child entity to set the foreign key value to null, and only after
+Hibernate will first fire an update statement on the child entity to set the foreign key value to null, and only after
 is will issue the delete statement to remove that same child entity. If `nullable=false` we save the first useless
 update statement.
 
@@ -880,7 +881,7 @@ the child side are reduced to one.
 ### bidirectional
 
 If it is required to access the child entity even from the parent side, a `@OneToOne` annotation is required on the
-parent-side. However, there is the possibility of incurring in an N+1 performance bottleneck: in fact, since hibernate
+parent-side. However, there is the possibility of incurring in an N+1 performance bottleneck: in fact, since Hibernate
 needs to know if assign a null value or an object to the one-to-one mapping, a select query is performed for each post
 entity retrieved in order to check, and eventually find, if there is a child entity connected.
 
@@ -970,7 +971,7 @@ record PostTagId(@Column(name = "post_id")
 ```
 
 From the parents side, we now have a collections of the new child entity, and we can use List without incurring in the
-hibernate bag behavior seen in the unidirectional `@OnetoMany` mapping (i.e. we have a single delete statement instead
+Hibernate bag behavior seen in the unidirectional `@OnetoMany` mapping (i.e. we have a single delete statement instead
 of a deleted all of n records where id = my_id and a n-1 insert back). The synchronization methods are again useful on
 the parent side, even if their implementation is a bit more cumbersome since we need to keep in sync both ends of the
 many-to-many association.
@@ -1103,7 +1104,7 @@ As a direct consequence, an insert of child entity requires the execution of two
 and one for the child entity. While in single inheritance we have a single index (a single pkey) shared between parent
 and child entities, the explicit child table representation requires the presence of more indexes. In contrast, joined
 inheritance allows for consistency since we can respect nullability in subclasses both on the application and on the
-persistence layer. Polymorphic queries are also more expensive since hibernate needs to resolve all the possible
+persistence layer. Polymorphic queries are also more expensive since Hibernate needs to resolve all the possible
 subclasses of the parent entity, leading to N + 1 joins where N is the number of subclasses, leading to a suboptimal
 execution plan.
 
@@ -1116,8 +1117,8 @@ entities and this will generate conflicts in polymorphic queries which needs a w
 
 Pros: Write operation are faster since we are inserting only once in the specific subclass
 
-Cons: Polymorphic queries use hibernate `UNION ALL` in inner queries and therefore are very inefficient; besides, not
-all hibernates dialect support UNION ALL and fall back to UNION which adds a sorting phase to eliminate duplicates,
+Cons: Polymorphic queries use Hibernate `UNION ALL` in inner queries and therefore are very inefficient; besides, not
+all Hibernates dialect support UNION ALL and fall back to UNION which adds a sorting phase to eliminate duplicates,
 something that is redundant since polymorphic queries cannot contain duplicates since the entity identifier and the
 discriminator column provides unique results in the inheritance tree.
 
@@ -1166,7 +1167,7 @@ possible, since the inheritance hierarchy exist only at the application level.
 | `@ManyToMany` | `jakarta.persistence`       | Defines a many-to-many relationship between entities.            |
 | `@JoinColumn` | `jakarta.persistence`       | Specifies the foreign key column in relationships.               |
 | `@JoinTable`  | `jakarta.persistence`       | Specifies the join table for `@ManyToMany` relationships.        |
-| `@ForeignKey` | `org.hibernate.annotations` | Defines the constraint for a foreign key.                        |
+| `@ForeignKey` | `org.Hibernate.annotations` | Defines the constraint for a foreign key.                        |
 | `@MapsId`     | `jakarta.persistence`       | Maps a relationship to use the identifier of the related entity. |
 
 ## Inheritance Annotations
@@ -1222,16 +1223,16 @@ possible, since the inheritance hierarchy exist only at the application level.
 
 | Annotation           | Package                     | Description                                                                   |
 |----------------------|-----------------------------|-------------------------------------------------------------------------------|
-| `@Formula`           | `org.hibernate.annotations` | Defines a SQL expression to compute a column value.                           |
-| `@Where`             | `org.hibernate.annotations` | Adds an SQL WHERE clause to an entity or collection mapping.                  |
-| `@Filter`            | `org.hibernate.annotations` | Enables dynamic filtering of query results.                                   |
-| `@FilterDef`         | `org.hibernate.annotations` | Defines a named filter with parameters.                                       |
-| `@Cache`             | `org.hibernate.annotations` | Specifies caching strategy for an entity or collection.                       |
-| `@DynamicUpdate`     | `org.hibernate.annotations` | Instructs Hibernate to include only changed columns in the UPDATE statement.  |
-| `@DynamicInsert`     | `org.hibernate.annotations` | Instructs Hibernate to include only non-null columns in the INSERT statement. |
-| `@OptimisticLocking` | `org.hibernate.annotations` | Specifies the optimistic locking strategy.                                    |
-| `@NaturalId`         | `org.hibernate.annotations` | Marks properties that form a natural ID.                                      |
-| `@Immutable`         | `org.hibernate.annotations` | Marks an entity or collection as immutable (read-only).                       |
+| `@Formula`           | `org.Hibernate.annotations` | Defines a SQL expression to compute a column value.                           |
+| `@Where`             | `org.Hibernate.annotations` | Adds an SQL WHERE clause to an entity or collection mapping.                  |
+| `@Filter`            | `org.Hibernate.annotations` | Enables dynamic filtering of query results.                                   |
+| `@FilterDef`         | `org.Hibernate.annotations` | Defines a named filter with parameters.                                       |
+| `@Cache`             | `org.Hibernate.annotations` | Specifies caching strategy for an entity or collection.                       |
+| `@DynamicUpdate`     | `org.Hibernate.annotations` | Instructs Hibernate to include only changed columns in the UPDATE statement.  |
+| `@DynamicInsert`     | `org.Hibernate.annotations` | Instructs Hibernate to include only non-null columns in the INSERT statement. |
+| `@OptimisticLocking` | `org.Hibernate.annotations` | Specifies the optimistic locking strategy.                                    |
+| `@NaturalId`         | `org.Hibernate.annotations` | Marks properties that form a natural ID.                                      |
+| `@Immutable`         | `org.Hibernate.annotations` | Marks an entity or collection as immutable (read-only).                       |
 
 ## Validation Annotations
 
