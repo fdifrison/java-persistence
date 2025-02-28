@@ -3,6 +3,8 @@ package com.fdifrison.hibernate;
 import com.fdifrison.configurations.Profiles;
 import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
+import java.time.Instant;
+import java.util.*;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -16,9 +18,6 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
-
-import java.time.Instant;
-import java.util.*;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
@@ -51,12 +50,13 @@ class TestService {
 
     public void addBaseData() {
         em.getTransaction().begin();
-        em.persist(new Post().setTitle("High-Performance Java Persistence")
+        em.persist(new Post()
+                .setTitle("High-Performance Java Persistence")
                 .addComment(new PostComment().setComment("Best book on JPA and Hibernate!"))
                 .addComment(new PostComment().setComment("A must-read for every Java developer!")));
-        em.persist(
-                new Post().setTitle("Hypersistence Optimizer")
-                        .addComment(new PostComment().setComment("It's like pair programming with Vlad!")));
+        em.persist(new Post()
+                .setTitle("Hypersistence Optimizer")
+                .addComment(new PostComment().setComment("It's like pair programming with Vlad!")));
         em.getTransaction().commit();
     }
 
@@ -65,14 +65,16 @@ class TestService {
         em.getTransaction().begin();
 
         // Use explicit typing with a select statement returning Object[]
-        Query<Object[]> query = em.createQuery("""
+        Query<Object[]> query = em.createQuery(
+                        """
                             select p.id as id,
                                    p.title as title,
                                    pc.comment as comment
                             from Post p
                             join PostComment pc on pc.post.id = p.id
                             order by p.id
-                        """, Object[].class)
+                        """,
+                        Object[].class)
                 .unwrap(Query.class);
 
         // Process the raw results with mapping function instead of using transformers
@@ -84,10 +86,7 @@ class TestService {
             String title = (String) tuple[1];
             String comment = (String) tuple[2];
 
-            PostDTOWithComment dto = postDTOMap.computeIfAbsent(
-                    id,
-                    key -> new PostDTOWithComment(id, title)
-            );
+            PostDTOWithComment dto = postDTOMap.computeIfAbsent(id, key -> new PostDTOWithComment(id, title));
 
             dto.comments().add(new PostDTOWithComment.CommentDTO(comment));
         }
@@ -100,14 +99,16 @@ class TestService {
         em.getTransaction().begin();
 
         // Use JPA's native Tuple support
-        List<Tuple> tuples = em.createQuery("""
+        List<Tuple> tuples = em.createQuery(
+                        """
                         select p.id as id,
                                p.title as title,
                                pc.comment as comment
                         from Post p
                         join PostComment pc on pc.post.id = p.id
                         order by p.id
-                        """, Tuple.class)
+                        """,
+                        Tuple.class)
                 .getResultList();
 
         // Process the tuples into DTOs
@@ -118,10 +119,7 @@ class TestService {
             String title = tuple.get("title", String.class);
             String comment = tuple.get("comment", String.class);
 
-            PostDTOWithComment dto = postDTOMap.computeIfAbsent(
-                    id,
-                    key -> new PostDTOWithComment(id, title)
-            );
+            PostDTOWithComment dto = postDTOMap.computeIfAbsent(id, key -> new PostDTOWithComment(id, title));
 
             dto.comments().add(new PostDTOWithComment.CommentDTO(comment));
         }
@@ -133,11 +131,13 @@ class TestService {
     public List<PostDTO> usingConstructorExpression() {
         em.getTransaction().begin();
 
-        return em.createQuery("""
+        return em.createQuery(
+                        """
                         select new com.fdifrison.hibernate.PostDTO(p.id, p.title)
                         from Post p
                         order by p.id
-                        """, PostDTO.class)
+                        """,
+                        PostDTO.class)
                 .getResultList();
     }
 
@@ -145,7 +145,8 @@ class TestService {
     public List<PostDTOWithComment> nativeQueryWithMapping() {
         em.getTransaction().begin();
 
-        NativeQuery<Map> nativeQuery = em.createNativeQuery("""
+        NativeQuery<Map> nativeQuery = em.createNativeQuery(
+                        """
                         SELECT p.id AS id,
                                p.title AS title,
                                pc.comment AS comment
@@ -170,10 +171,7 @@ class TestService {
             String title = (String) row.get("title");
             String comment = (String) row.get("comment");
 
-            PostDTOWithComment dto = dtoMap.computeIfAbsent(
-                    id,
-                    key -> new PostDTOWithComment(id, title)
-            );
+            PostDTOWithComment dto = dtoMap.computeIfAbsent(id, key -> new PostDTOWithComment(id, title));
 
             dto.comments().add(new PostDTOWithComment.CommentDTO(comment));
         }
@@ -229,8 +227,7 @@ class PostComment {
     private byte[] image;
 }
 
-record PostDTO(long id, String title) {
-}
+record PostDTO(long id, String title) {}
 
 record PostDTOWithComment(long id, String title, List<CommentDTO> comments) {
 
@@ -238,6 +235,5 @@ record PostDTOWithComment(long id, String title, List<CommentDTO> comments) {
         this(id, title, new ArrayList<>());
     }
 
-    record CommentDTO(String comment) {
-    }
+    record CommentDTO(String comment) {}
 }

@@ -1,8 +1,9 @@
 package com.fdifrison.springdata;
 
 import com.fdifrison.configurations.Profiles;
-import com.fdifrison.utils.Printer;
 import jakarta.persistence.*;
+import java.time.Instant;
+import java.util.*;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -18,15 +19,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.projection.ProjectionFactory;
-import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.util.*;
-import java.util.stream.Collectors;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
@@ -65,7 +60,6 @@ interface PostRepository extends JpaRepository<Post, Long> {
     @EntityGraph(attributePaths = "comments")
     @Query("select p from Post p")
     List<Post> findAllAndThenMap(Pageable pageable);
-
 }
 
 @Service
@@ -80,15 +74,18 @@ class TestService {
     public void addBaseData() {
         var imgSize = new Random().nextInt(10000, 1000000);
 
-        repository.save(new Post().setTitle("High-Performance Java Persistence")
+        repository.save(new Post()
+                .setTitle("High-Performance Java Persistence")
                 .setImage(new byte[imgSize])
-                .addComment(new PostComment().setComment("Best book on JPA and Hibernate!").setImage(new byte[imgSize]))
+                .addComment(new PostComment()
+                        .setComment("Best book on JPA and Hibernate!")
+                        .setImage(new byte[imgSize]))
                 .addComment(new PostComment().setComment("A must-read for every Java developer!")));
-        repository.save(
-                new Post().setTitle("Hypersistence Optimizer").setImage(new byte[imgSize])
-                        .addComment(new PostComment().setComment("It's like pair programming with Vlad!")));
+        repository.save(new Post()
+                .setTitle("Hypersistence Optimizer")
+                .setImage(new byte[imgSize])
+                .addComment(new PostComment().setComment("It's like pair programming with Vlad!")));
     }
-
 
     public void compareQueryMethods() {
         // Warm up
@@ -100,8 +97,6 @@ class TestService {
         var pageSize = List.of(10, 50, 100);
         var projectionTime = new ArrayList<Long>();
         var fullQuery = new ArrayList<Long>();
-
-
 
         for (Integer size : pageSize) {
             // Benchmark projection
@@ -120,11 +115,8 @@ class TestService {
             System.out.println("Projection time: " + projectionTime.get(i) / 1_000_000 + " ms");
             System.out.println("After mapping time: " + fullQuery.get(i) / 1_000_000 + " ms");
         }
-
     }
-
 }
-
 
 @Accessors(chain = true)
 @Getter
@@ -183,13 +175,8 @@ interface PostWithCommentsProjection {
     interface CommentProjection {
         String getComment();
     }
-
-
 }
-
 
 record PostWithCommentsDTO(Long id, String title, List<CommentDTO> comments) {
-    public record CommentDTO(String comment) {
-    }
+    public record CommentDTO(String comment) {}
 }
-

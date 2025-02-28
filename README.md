@@ -680,7 +680,7 @@ public class Post {
 }
 ```
 
-where the SQL query needs to use the same column aliases that are expected by the `@ConstructorResult` mapping. To then
+Where the SQL query needs to use the same column aliases that are expected by the `@ConstructorResult` mapping. To then
 execute a named query, be it native or not, we use the entity manager `.createNamedQuery` method:
 
 ```java
@@ -691,8 +691,40 @@ var postDTOs = entityManager.createNamedQuery("PostDTOEntityQuery", PostDTO.clas
 
 ## Hibernate projections
 
-Prior to version 6, Hibernate allowed to define a custom `ResultTransformer` that use a DTO to projects a resultset by
-its canonical constructor and java beans setter methods
+Prior to version 6, Hibernate allowed defining a custom `ResultTransformer` that use a DTO to projects a resultset by
+its canonical constructor and java beans setter methods. Now there are alternatives (as of today, version 6.2 still
+incubating) like `TupleTransfromer` and `ResultListTransformer` that can perform the same task but are quite messy (the
+former is used to cast the JDBC resultset in the specific type of the destination DTO while the latter is used to filter
+the result list that may contain duplicates since a cartesian product is performed when a one-to-may collection is
+present).
+
+## Bets approach for projecting parent-child relationship
+
+As of today (February 2025) the best approach to project to DTO condensed information from a parent-child relationship
+is to use interface projection. An interface is defined with the getters method related to the fields we need in the
+projection; the resultset is then mapped into a proxy object
+
+```java
+interface PostWithCommentsProjection {
+    Long getId();
+
+    String getTitle();
+
+    List<CommentProjection> getComments();
+
+    interface CommentProjection {
+        String getComment();
+    }
+}
+
+class PostRepository {
+    @EntityGraph(attributePaths = "comments")
+    @Query("select p.id as id, p.title as title, c.comment as comment from Post p left join p.comments c ")
+    List<PostWithCommentsProjection> findAllByProjecting();
+}
+```
+
+The proxy can then be mapped to a concrete DTO and returned to the client.
 
 ___
 
