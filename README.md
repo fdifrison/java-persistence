@@ -17,70 +17,72 @@ the correct spring profile (it has to match the one requested in the context of 
 # Theory
 
 <!-- TOC -->
+
 * [Theory](#theory)
 * [Connections](#connections)
 * [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
-  * [Caching](#caching)
-  * [Entity state transitions](#entity-state-transitions)
-    * [JPA EntityManager](#jpa-entitymanager)
-    * [Hibernate Session](#hibernate-session)
-      * [JPA merge vs Hibernate update](#jpa-merge-vs-hibernate-update)
-  * [Dirty checking](#dirty-checking)
-    * [Bytecode enhancement](#bytecode-enhancement)
-  * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
-  * [Flushing](#flushing)
-    * [AUTO flushing mode](#auto-flushing-mode)
-    * [Flushing in batch processing](#flushing-in-batch-processing)
-  * [Events and event listener](#events-and-event-listener)
+    * [Caching](#caching)
+    * [Entity state transitions](#entity-state-transitions)
+        * [JPA EntityManager](#jpa-entitymanager)
+        * [Hibernate Session](#hibernate-session)
+            * [JPA merge vs Hibernate update](#jpa-merge-vs-hibernate-update)
+    * [Dirty checking](#dirty-checking)
+        * [Bytecode enhancement](#bytecode-enhancement)
+    * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
+    * [Flushing](#flushing)
+        * [AUTO flushing mode](#auto-flushing-mode)
+        * [Flushing in batch processing](#flushing-in-batch-processing)
+    * [Events and event listener](#events-and-event-listener)
 * [SQL Statements: lifecycle, execution plan and caching](#sql-statements-lifecycle-execution-plan-and-caching)
-  * [Execution plan cache](#execution-plan-cache)
-  * [Prepared statement](#prepared-statement)
-  * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
+    * [Execution plan cache](#execution-plan-cache)
+    * [Prepared statement](#prepared-statement)
+    * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
 * [Fetching](#fetching)
 * [Projections](#projections)
-  * [JPA projections](#jpa-projections)
-    * [Tuple](#tuple)
-    * [DTO](#dto)
-      * [mapping native SQL queries](#mapping-native-sql-queries)
-  * [Hibernate projections](#hibernate-projections)
-  * [Bets approach for projecting parent-child relationship](#bets-approach-for-projecting-parent-child-relationship)
+    * [JPA projections](#jpa-projections)
+        * [Tuple](#tuple)
+        * [DTO](#dto)
+            * [mapping native SQL queries](#mapping-native-sql-queries)
+    * [Hibernate projections](#hibernate-projections)
+    * [Bets approach for projecting parent-child relationship](#bets-approach-for-projecting-parent-child-relationship)
 * [Batching in Hibernate](#batching-in-hibernate)
-  * [Bulking operations](#bulking-operations)
-  * [Batching in cascade](#batching-in-cascade)
-    * [DELETE cascade](#delete-cascade)
-    * [Batching on versioned entity](#batching-on-versioned-entity)
-  * [Default UPDATE behavior](#default-update-behavior)
+    * [Bulking operations](#bulking-operations)
+    * [Batching in cascade](#batching-in-cascade)
+        * [DELETE cascade](#delete-cascade)
+        * [Batching on versioned entity](#batching-on-versioned-entity)
+    * [Default UPDATE behavior](#default-update-behavior)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
-  * [JPA identifiers](#jpa-identifiers)
+    * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
-  * [`@ManyToOne`](#manytoone)
-    * [bidirectional](#bidirectional)
-  * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
-    * [join table](#join-table)
-      * [List vs Set Collections](#list-vs-set-collections)
-    * [`@JoinColumn`](#joincolumn)
-  * [`@OneToOne`](#onetoone)
-    * [unidirectional](#unidirectional)
-    * [bidirectional](#bidirectional-1)
-  * [`@ManyToMany`](#manytomany)
-    * [Explicit mapping](#explicit-mapping)
+    * [`@ManyToOne`](#manytoone)
+        * [bidirectional](#bidirectional)
+    * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
+        * [join table](#join-table)
+            * [List vs Set Collections](#list-vs-set-collections)
+        * [`@JoinColumn`](#joincolumn)
+    * [`@OneToOne`](#onetoone)
+        * [unidirectional](#unidirectional)
+        * [bidirectional](#bidirectional-1)
+    * [`@ManyToMany`](#manytomany)
+        * [Explicit mapping](#explicit-mapping)
 * [JPA inheritance](#jpa-inheritance)
-  * [Single table inheritance](#single-table-inheritance)
-    * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
-  * [Joined inheritance](#joined-inheritance)
-  * [Table per class](#table-per-class)
-  * [`@MappedSuperclass`](#mappedsuperclass)
+    * [Single table inheritance](#single-table-inheritance)
+        * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
+    * [Joined inheritance](#joined-inheritance)
+    * [Table per class](#table-per-class)
+    * [`@MappedSuperclass`](#mappedsuperclass)
 * [EnumType](#enumtype)
 * [Spring Data, JPA, and Hibernate Annotations Reference](#spring-data-jpa-and-hibernate-annotations-reference)
-  * [Entity Annotations](#entity-annotations)
-  * [Relationship Annotations](#relationship-annotations)
-  * [Inheritance Annotations](#inheritance-annotations)
-  * [Query Annotations](#query-annotations)
-  * [Spring Data Repository Annotations](#spring-data-repository-annotations)
-  * [Transaction Annotations](#transaction-annotations)
-  * [Auditing Annotations](#auditing-annotations)
-  * [Hibernate-Specific Annotations](#hibernate-specific-annotations)
-  * [Validation Annotations](#validation-annotations)
+    * [Entity Annotations](#entity-annotations)
+    * [Relationship Annotations](#relationship-annotations)
+    * [Inheritance Annotations](#inheritance-annotations)
+    * [Query Annotations](#query-annotations)
+    * [Spring Data Repository Annotations](#spring-data-repository-annotations)
+    * [Transaction Annotations](#transaction-annotations)
+    * [Auditing Annotations](#auditing-annotations)
+    * [Hibernate-Specific Annotations](#hibernate-specific-annotations)
+    * [Validation Annotations](#validation-annotations)
+
 <!-- TOC -->
 
 ---
@@ -374,7 +376,8 @@ test different execution strategies and estimate which is the most efficient dat
 ![](./images/persistence-context/statements.png)
 
 The main modules responsible for processing the SQL statements are the `Parser`, the `Optimizer` and the `Executor`.
-The `Parser` verifies that the SQL statement is both syntactically and semantically correct (i.e., that both the specific
+The `Parser` verifies that the SQL statement is both syntactically and semantically correct (i.e., that both the
+specific
 SQL grammar is correct and that the referenced tables and columns exist). The result of the parsing phase is the
 `syntax tree` (also known as query tree), i.e., the internal logical database representation of the query.
 
@@ -437,9 +440,13 @@ create a server-side prepared statement.
 
 ## Fetching associations
 
+By default, `@ManyToOne` and `OneToOne` associations use `FetchType.EAGER` while `@OneToMany` and `@ManyToMany` use
+`FetchType.LAZY`. The options can be overridden both by changing the attribute in the mapping or at query time by using
+an `entity graph`. 
+
+**N.B. Lazy fetching is only a hint, the underlying persistence provider might choose to ignore it**
+
 ---
-
-
 
 # Projections
 
@@ -1157,12 +1164,12 @@ An EnumType can be mapped to a database column in 3 ways:
 
 | Annotation        | Package               | Description                                                                                                       |
 |-------------------|-----------------------|-------------------------------------------------------------------------------------------------------------------|
-| `@Entity`         | `jakarta.persistence` | Marks a class as an entity (i.e.,, a persistent domain object). Required for JPA entities.                         |
+| `@Entity`         | `jakarta.persistence` | Marks a class as an entity (i.e.,, a persistent domain object). Required for JPA entities.                        |
 | `@Table`          | `jakarta.persistence` | Specifies the table name for the entity. Optional if entity name matches table name.                              |
 | `@Id`             | `jakarta.persistence` | Marks a field as the primary key.                                                                                 |
 | `@GeneratedValue` | `jakarta.persistence` | Specifies strategy for generating primary key values. Common strategies: `AUTO`, `IDENTITY`, `SEQUENCE`, `TABLE`. |
 | `@Column`         | `jakarta.persistence` | Specifies column mapping details (name, nullable, unique, length, etc.).                                          |
-| `@Transient`      | `jakarta.persistence` | Marks a field as non-persistent (i.e.,, not stored in database).                                                   |
+| `@Transient`      | `jakarta.persistence` | Marks a field as non-persistent (i.e.,, not stored in database).                                                  |
 | `@Temporal`       | `jakarta.persistence` | Specifies temporal precision for date/time fields (`DATE`, `TIME`, `TIMESTAMP`).                                  |
 | `@Enumerated`     | `jakarta.persistence` | Specifies how to persist enum values (`STRING` or `ORDINAL`).                                                     |
 | `@Lob`            | `jakarta.persistence` | Marks a field as Large Object (for storing large data like text or binary content).                               |
