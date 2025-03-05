@@ -36,12 +36,7 @@ the correct spring profile (it has to match the one requested in the context of 
   * [Execution plan cache](#execution-plan-cache)
   * [Prepared statement](#prepared-statement)
   * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
-* [Batching in Hibernate](#batching-in-hibernate)
-  * [Bulking operations](#bulking-operations)
-  * [Batching in cascade](#batching-in-cascade)
-    * [DELETE cascade](#delete-cascade)
-    * [Batching on versioned entity](#batching-on-versioned-entity)
-  * [Default UPDATE behavior](#default-update-behavior)
+* [Fetching](#fetching)
 * [Projections](#projections)
   * [JPA projections](#jpa-projections)
     * [Tuple](#tuple)
@@ -49,8 +44,14 @@ the correct spring profile (it has to match the one requested in the context of 
       * [mapping native SQL queries](#mapping-native-sql-queries)
   * [Hibernate projections](#hibernate-projections)
   * [Bets approach for projecting parent-child relationship](#bets-approach-for-projecting-parent-child-relationship)
+* [Batching in Hibernate](#batching-in-hibernate)
+  * [Bulking operations](#bulking-operations)
+  * [Batching in cascade](#batching-in-cascade)
+    * [DELETE cascade](#delete-cascade)
+    * [Batching on versioned entity](#batching-on-versioned-entity)
+  * [Default UPDATE behavior](#default-update-behavior)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
-* [JPA identifiers](#jpa-identifiers)
+  * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
   * [`@ManyToOne`](#manytoone)
     * [bidirectional](#bidirectional)
@@ -63,13 +64,13 @@ the correct spring profile (it has to match the one requested in the context of 
     * [bidirectional](#bidirectional-1)
   * [`@ManyToMany`](#manytomany)
     * [Explicit mapping](#explicit-mapping)
-* [EnumType](#enumtype)
 * [JPA inheritance](#jpa-inheritance)
   * [Single table inheritance](#single-table-inheritance)
     * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
   * [Joined inheritance](#joined-inheritance)
   * [Table per class](#table-per-class)
   * [`@MappedSuperclass`](#mappedsuperclass)
+* [EnumType](#enumtype)
 * [Spring Data, JPA, and Hibernate Annotations Reference](#spring-data-jpa-and-hibernate-annotations-reference)
   * [Entity Annotations](#entity-annotations)
   * [Relationship Annotations](#relationship-annotations)
@@ -139,7 +140,7 @@ implementation, the `SessionImpl` is directly related as well. These are commonl
 
 ## Caching
 
-Once an entity is *managed* (i.e., loaded) by the persistence context, it is also cached, meaning that each successive
+Once an entity is *managed* (i.e.,, loaded) by the persistence context, it is also cached, meaning that each successive
 request will avoid a database roundtrip.
 
 The standard caching mechanism offered by the persistence context is the so called `write-behinde` cache mechanism;
@@ -305,7 +306,8 @@ when a query is tagged as native, Hibernate knows that it holds the specific dia
 provider. Therefore, it won't parse it (for this reason, the JPA compliant implementation of the Hibernate session will
 force a flush when it sees a native query, to be sure to maintain consistency). This results in Hibernate being unable
 to know the query space of the incoming query. It is the developer job to instruct the query with the table space that
-needs to synchronize upon its execution. (see [Hibernate-query-space](https://thorben-janssen.com/Hibernate-query-spaces/)).
+needs to synchronize upon its execution. (
+see [Hibernate-query-space](https://thorben-janssen.com/Hibernate-query-spaces/)).
 
 An alternative is to switch to `FlushMode.ALWAYS`, which has the same behavior of the JPA `AUTO`, either at session
 level or only for the specific query.
@@ -332,7 +334,7 @@ private void flush(EntityManager entityManager) {
 
 ## Events and event listener
 
-Hibernates internals defines, for any entity state change, specif events (i.e. `PersistEvent`, `MergeEvent` etc...)
+Hibernates internals defines, for any entity state change, specif events (i.e., `PersistEvent`, `MergeEvent` etc...)
 associated with a default implementation of an event listener like `DefaultPersistEventListener` (these can be by custom
 implementations). In turn, the event listener translates the state change in an internal `EntityAction` that can be
 queued in an `ActionQueue` and gets executed only at flush time. If an entity that is going to be removed has an
@@ -342,7 +344,7 @@ an `OrphanRemovalAction` if the child entity is unreferenced; both the actions t
 ![](./images/persistence-context/events.png)
 
 Toward the end of the flushing of the persistence context, Hibernate will execute all the actions that have been
-enqueued, but in a strict specif order:
+enqueued, but in a strict specific order:
 
 * `OrphanRemovalAction`
 * `EntityInsertAction` and `EntityIdentityInsertAction`
@@ -371,20 +373,20 @@ test different execution strategies and estimate which is the most efficient dat
 
 ![](./images/persistence-context/statements.png)
 
-The main modules responsible for processing the sql statements are the `Parser`, the `Optimizer` and the `Executor`.
-The `Parser` verifies that the SQL statement is both syntactically and semantically correct (i.e. that both the specific
-sql grammar is correct and that the referenced tables and columns exists). The result of the parsing phase is the
-`syntax tree` (also known as query tree), i.e. the internal logical database representation of the query.
+The main modules responsible for processing the SQL statements are the `Parser`, the `Optimizer` and the `Executor`.
+The `Parser` verifies that the SQL statement is both syntactically and semantically correct (i.e., that both the specific
+SQL grammar is correct and that the referenced tables and columns exist). The result of the parsing phase is the
+`syntax tree` (also known as query tree), i.e., the internal logical database representation of the query.
 
 For a given syntax tree, the database must decide the most efficient data fetching algorithm; the operation of finding
 the bests `action plans` is performed by the `Optimizer` which evaluates multiple data traversing options like which
 access method (table scan or index scan), which joining strategy (nested loops, hash join or merge join) and the join
-order. As a result, the Optimizer presents a list of access plan that will be passed to the Executor. The number of
+order. As a result, the Optimizer presents a list of access plans that will be passed to the Executor. The number of
 action plan possible can be very large, depending on the complexity of the query, and it's a cost intensive operation
 that can increase the transaction response time; therefore, the Optimizer has a fixed time budget for finding a
 reasonable action plan, usually with the most common algorithm: the `Cost-Based optimizer`. In the end, the cost is
 computed with the estimate of CPU cycle and I/O operation required for a specific plan. Due to the expensiveness of this
-operation, most database vendor will cache the execution plan chosen but, since the database structure can change over
+operation, most database vendors will cache the execution plan chosen but, since the database structure can change over
 time, they also need a separate process for validating the existing plans.
 
 Once the best execution plan has been chosen (and cached), the `Executor`, using the storing engine, will use it to
@@ -431,116 +433,13 @@ create a server-side prepared statement.
 
 ---
 
-# Batching in Hibernate
+# Fetching
 
-To enable batching in Hibernate only a single property is required (while with plain JDBC a programmatic configuration
-is required)
-
-```yaml
-Hibernate.jdbc.batch_size: 5
-```
-
-This setting is configured at the `EntityManagerFactory` (or `SessionFactory`) level so it will apply to all the
-sessions the same batch size. From Hibernate 5.2 we can also set the jdbc batch size per query basis, optimizing each
-business case.
-
-```java
-// Setting the batch size to null at the end of the method, will reset the entity manager configuration for the
-// next usage of the extended entity manager
-
-@PersistenceContext(type = PeristenceContextType.Extendend)
-private EntityManager entityManager;
-
-public void batchPerQuery() {
-    entityManager.unwrap(Session.class).setJdbcBatchSize(10);
-//...
-    entityManager.unwrap(Session.class).setJdbcBatchSize(null);
-}
-```
-
-If the entity identifier use the `GenerationType.IDENTITY`, Hibernate disable the batch insert since the only way to
-know the entity id, needed to construct the first-level cache entry key, is to execute the actual INSERT statement.
-
-**N.B. the restriction doesn't apply to UPDATE and DELETE statements that can still benefits of batch operation even
-with the identity primary key**
-
-## Bulking operations
-
-Batching is not the only way to execute statements on multiple rows at once; SQL offers `bulk operations` to modify a
-set of rows that satisfy a filtering criteria
-
-```sql
--- examples
-UPDATE post
-SET version = version + 1;
-DELETE
-FROM post
-WHERE version > 1;
-```
-
-**N.B. operating on too many entities at once, especially in a highly concurrent environment, can be a problem both for
-batching and bulk operations, since we are performing long-running transaction that will block any other write operation
-**
-
-## Batching in cascade
-
-Imagine a parent entity with a `@OneToMany` mapping and `CascadeType.ALL` (e.g. post and post_comment); even if we
-enable batch operations and try to insert multiple post with associated post_comments, Hibernate will execute separately
-one insert statement for each entity persisted; this because JDBC batching requires executing the same
-`PreparedStatement` over and over, but in this case the insert of a post in followed by the insert of a post_comment and
-therefore the batch needs to be flushed prior to switching to the next post entity.
-
-To solve this we need to enable another property that tells Hibernate to sort the type of statements while making sure
-that the parent-child integrity is preserved.
-
-```yaml
-Hibernate.order_insert: true
-Hibernate.order_updates: true
-```
-
-**N.B the same applies to batch UPDATE**
-
-### DELETE cascade
-
-Unlike INSERT and UPDATE statements, there is no property to sort DELETE statements in batch operations when cascading
-deletes applies. However, there are some workarounds:
-
-* delete all the child entities and then flux the persistence context before removing the parent entities
-* bulk deleting the child entities (this implies to change the cascade type to only `PERSIST` and `MERGE` which has also
-  the benefit of a faster flushing operation since the persistence context doesn't need to propagate the delete
-  statement to the child entities)
-* (BEST APPROACH) delegating the DELETE of the child entity to the database engine by adding a database-level directive
-  of cascade delete on the foreign key
-  ```sql
-  alter table post_comment
-  add constraint fk_post_comment_post
-  foreign key (post_id) references post on delete cascade
-  ```
-
-### Batching on versioned entity
-
-Prior to Hibernate 5 or when using Oracle < 12c it was not possible to perform batch operations on entity with a
-`@Version` field, since, due to some old JDBC driver logics, it would incur in an `OptimistickLockException` or
-`StaleObjectStateException` due to a mismatch in the entity update count.
-
-To solve this, since Hibernate 5 the property `Hibernate.jdbc.batch:versioned_data` is set to **true** by default.
-
-## Default UPDATE behavior
-
-The default UPDATE behavior consents to batch statements that modify different columns of the same entity since all the
-columns are sent over the network, even those which haven't been modified. This leads to a wider possibility of batching
-but with some potential disadvantages:
-
-* if there are large columns (e.g. blob) we are sending these always over the network as well
-* all indexes are scanned
-* replication node will also be propagated with all the columns, not just those modified
-* possible accidental execution of triggers
-
-However, at the cost of disabling batching entirely for a given entity, we can mark it with the Hibernate annotation
-`@DynamicUpdate` which will select only the modified columns over the network. This will disable batching because a
-change in the binding parameters effectively results in a different prepared statement.
+## Fetching associations
 
 ---
+
+
 
 # Projections
 
@@ -729,39 +628,150 @@ The proxy can then be mapped to a concrete DTO and returned to the client.
 
 ___
 
+# Batching in Hibernate
+
+To enable batching in Hibernate, only a single property is required (while with plain JDBC a programmatic configuration
+is required)
+
+```yaml
+Hibernate.jdbc.batch_size: 5
+```
+
+This setting is configured at the `EntityManagerFactory` (or `SessionFactory`) level so it will apply to all the
+sessions the same batch size. From Hibernate 5.2 we can also set the jdbc batch size per query basis, optimizing each
+business case.
+
+```java
+// Setting the batch size to null at the end of the method, will reset the entity manager configuration for the
+// next usage of the extended entity manager
+
+@PersistenceContext(type = PeristenceContextType.Extendend)
+private EntityManager entityManager;
+
+public void batchPerQuery() {
+    entityManager.unwrap(Session.class).setJdbcBatchSize(10);
+//...
+    entityManager.unwrap(Session.class).setJdbcBatchSize(null);
+}
+```
+
+If the entity identifier use the `GenerationType.IDENTITY`, Hibernate disable the batch insert since the only way to
+know the entity id, needed to construct the first-level cache entry key, is to execute the actual INSERT statement.
+
+**N.B. the restriction doesn't apply to UPDATE and DELETE statements that can still benefits of batch operation even
+with the identity primary key**
+
+## Bulking operations
+
+Batching is not the only way to execute statements on multiple rows at once; SQL offers `bulk operations` to modify a
+set of rows that satisfy a filtering criteria
+
+```SQL
+-- examples
+UPDATE post
+SET version = version + 1;
+DELETE
+FROM post
+WHERE version > 1;
+```
+
+**N.B. operating on too many entities at once, especially in a highly concurrent environment, can be a problem both for
+batching and bulk operations, since we are performing long-running transaction that will block any other write operation
+**
+
+## Batching in cascade
+
+Imagine a parent entity with a `@OneToMany` mapping and `CascadeType.ALL` (e.g. post and post_comment); even if we
+enable batch operations and try to insert multiple post with associated post_comments, Hibernate will execute separately
+one insert statement for each entity persisted; this because JDBC batching requires executing the same
+`PreparedStatement` over and over, but in this case the insert of a post in followed by the insert of a post_comment and
+therefore the batch needs to be flushed prior to switching to the next post entity.
+
+To solve this we need to enable another property that tells Hibernate to sort the type of statements while making sure
+that the parent-child integrity is preserved.
+
+```yaml
+Hibernate.order_insert: true
+Hibernate.order_updates: true
+```
+
+**N.B the same applies to batch UPDATE**
+
+### DELETE cascade
+
+Unlike INSERT and UPDATE statements, there is no property to sort DELETE statements in batch operations when cascading
+deletes applies. However, there are some workarounds:
+
+* delete all the child entities and then flux the persistence context before removing the parent entities
+* bulk deleting the child entities (this implies to change the cascade type to only `PERSIST` and `MERGE` which has also
+  the benefit of a faster flushing operation since the persistence context doesn't need to propagate the delete
+  statement to the child entities)
+* (BEST APPROACH) delegating the DELETE of the child entity to the database engine by adding a database-level directive
+  of cascade delete on the foreign key
+  ```SQL
+  alter table post_comment
+  add constraint fk_post_comment_post
+  foreign key (post_id) references post on delete cascade
+  ```
+
+### Batching on versioned entity
+
+Prior to Hibernate 5 or when using Oracle < 12c it was not possible to perform batch operations on entity with a
+`@Version` field, since, due to some old JDBC driver logics, it would incur in an `OptimistickLockException` or
+`StaleObjectStateException` due to a mismatch in the entity update count.
+
+To solve this, since Hibernate 5 the property `Hibernate.jdbc.batch:versioned_data` is set to **true** by default.
+
+## Default UPDATE behavior
+
+The default UPDATE behavior consents to batch statements that modify different columns of the same entity since all the
+columns are sent over the network, even those which haven't been modified. This leads to a wider possibility of batching
+but with some potential disadvantages:
+
+* if there are large columns (e.g. blob) we are sending these always over the network as well
+* all indexes are scanned
+* replication node will also be propagated with all the columns, not just those modified
+* possible accidental execution of triggers
+
+However, at the cost of disabling batching entirely for a given entity, we can mark it with the Hibernate annotation
+`@DynamicUpdate` which will select only the modified columns over the network. This will disable batching because a
+change in the binding parameters effectively results in a different prepared statement.
+
+---
+
 # Primary Keys and JPA identifiers
 
 Primary keys are the unique identifier of a row in a table.
 
-We can choose between a **natural ID**, i.e. a unique identifier naturally related to the entity we are storing, like a
+We can choose between a **natural ID**, i.e., a unique identifier naturally related to the entity we are storing, like a
 social security number or a book ISBN. Natural identifiers are usually not the best choice due to their space overhead (
 to be unique they are generally long).
 
-The most common option is a **surrogate key**, i.e. a generic unique identifier. We can choose from:
+The most common option is a **surrogate key**, i.e., a generic unique identifier. We can choose from:
 
 - UUID (128bits)
-- Auto-increment column (from 8 to 64bits at max if we use long)
+- Auto-increment column (from 8 to 64 bits at max if we use long)
 
 The dimension of the primary key and the efficiency of its associated index; b-trees are self-balancing tree data
-structures at the core of relational databases and they work better with sequential indexes because a new index is
-always appended at the end of the clustered index hence the physical ordering will match the logical ordering resulting
+structures at the core of relational databases, and they work better with sequential indexes because a new index is
+always appended at the end of the clustered index, hence the physical ordering will match the logical ordering resulting
 in an optimal key-set pagination (searching for a range of primary keys) since we will have sequential reads. If the key
-is generated randomly we will have fragmentation and page splits leading to more I/O operations.
+is generated randomly, we will have fragmentation and page splits leading to more I/O operations.
 
-# JPA identifiers
+## JPA identifiers
 
 In JPA and Hibernate each entity requires an identifier for the primary key mapping. It can be manually assigned (using
 only the `@Id`, annotation don’t do this) or generated by the provider with 3 different strategies:
 
 - Identity → `GenerationType.IDENTITY`, using the physical database identity column. The identity generator can be
   applied only to a single column; An internal counter is incremented every time it is invoked using a lightweight
-  locking mechanism that is not transactional (i.e. **rollbacks can lead to gaps in the identity column values of two
+  locking mechanism that is not transactional (i.e., **rollbacks can lead to gaps in the identity column values of two
   consecutive columns rows**) and can release the lock right away after the increment.
   **DRAWBACKS:**
   The new value assigned from the counter is known only after executing the INSERT statement.
   Since the ID generation and the insert statement occur in a different transaction, Hibernate disables the batch
   insert. Hibernate issues the insert statement during the persist method call without waiting for the first-level
-  cache (i.e. the Persistence Context) to flush and synchronize the entity state changes with the database.
+  cache (i.e., the Persistence Context) to flush and synchronize the entity state changes with the database.
 - Sequence → `GenerationType.SEQUENCE`, using a sequence generator. A Sequence is a database object that generates a
   number upon incrementing an internal counter, and this can be done by incremental steps, allowing for
   application-level optimization techniques (like caching strategy to preallocate a set of values reducing the number of
@@ -971,7 +981,7 @@ record PostTagId(@Column(name = "post_id")
 ```
 
 From the parents side, we now have a collections of the new child entity, and we can use List without incurring in the
-Hibernate bag behavior seen in the unidirectional `@OnetoMany` mapping (i.e. we have a single delete statement instead
+Hibernate bag behavior seen in the unidirectional `@OnetoMany` mapping (i.e., we have a single delete statement instead
 of a deleted all of n records where id = my_id and a n-1 insert back). The synchronization methods are again useful on
 the parent side, even if their implementation is a bit more cumbersome since we need to keep in sync both ends of the
 many-to-many association.
@@ -995,43 +1005,6 @@ public Post removeTag(Tag tag) {
     return this;
 }
 ```
-
-# EnumType
-
-An EnumType can be mapped to a database column in 3 ways:
-
-- Using JPA `@Enumerated` annotation:
-    - with `EnumType.STRING` by which the enum is stored as a string. The string representation occupies more bits but
-      it is human-readable
-
-  ![string-enum.png](./images/enumtype/string-enum.png)
-
-    - with `EnumType.ORDINAL` by which the enum is stored as an int representing the literal value. The ordinal
-      representation saves bites but, for a service consuming this data, it doesn’t give any way to interpret the data
-      without a decoding table. If we know the enum to have less than 256 values we can use a tinyint. To map the
-      decoding table post_status_info we need a `@ManyToOne`association on the table containing the enum column,
-      specifying that the item cannot be inserted or updated since we don't want to have two owner of the same data
-
-  ![ordinal-enum-1.png](./images/enumtype/ordinal-enum-1.png)
-
-  ![ordinal-enum-2.png](./images/enumtype/ordinal-enum-2.png)
-
-- Creating a custom type (if the db vendor permits it) like the PostgreSQL EnumType, by which the database will be able
-  to store the string value of the enum while reducing the space required in comparison to the varchar implementation
-  required in EnumType.STRING
-
-  ![psql-enum-create.png](./images/enumtype/psql-enum-create.png)
-
-  Since Hibernate is not aware of the custom enum type we need to explicitly state its definition programmatically
-
-  ![psql-enum.png](./images/enumtype/psql-enum.png)
-
-  And create a custom class that extends the default Hibernate EnumType, overriding the nullSafeSet method that is
-  responsible for binding the enum type as a jdbc-prepared statement parameter
-
-  ![psql-custom-type.png](./images/enumtype/psql-custom-type.png)
-
----
 
 # JPA inheritance
 
@@ -1141,18 +1114,55 @@ possible, since the inheritance hierarchy exist only at the application level.
 
 ---
 
+# EnumType
+
+An EnumType can be mapped to a database column in 3 ways:
+
+- Using JPA `@Enumerated` annotation:
+    - with `EnumType.STRING` by which the enum is stored as a string. The string representation occupies more bits but
+      it is human-readable
+
+  ![string-enum.png](./images/enumtype/string-enum.png)
+
+    - with `EnumType.ORDINAL` by which the enum is stored as an int representing the literal value. The ordinal
+      representation saves bites but, for a service consuming this data, it doesn’t give any way to interpret the data
+      without a decoding table. If we know the enum to have less than 256 values we can use a tinyint. To map the
+      decoding table post_status_info we need a `@ManyToOne`association on the table containing the enum column,
+      specifying that the item cannot be inserted or updated since we don't want to have two owner of the same data
+
+  ![ordinal-enum-1.png](./images/enumtype/ordinal-enum-1.png)
+
+  ![ordinal-enum-2.png](./images/enumtype/ordinal-enum-2.png)
+
+- Creating a custom type (if the db vendor permits it) like the PostgreSQL EnumType, by which the database will be able
+  to store the string value of the enum while reducing the space required in comparison to the varchar implementation
+  required in EnumType.STRING
+
+  ![psql-enum-create.png](./images/enumtype/psql-enum-create.png)
+
+  Since Hibernate is not aware of the custom enum type we need to explicitly state its definition programmatically
+
+  ![psql-enum.png](./images/enumtype/psql-enum.png)
+
+  And create a custom class that extends the default Hibernate EnumType, overriding the nullSafeSet method that is
+  responsible for binding the enum type as a jdbc-prepared statement parameter
+
+  ![psql-custom-type.png](./images/enumtype/psql-custom-type.png)
+
+---
+
 # Spring Data, JPA, and Hibernate Annotations Reference
 
 ## Entity Annotations
 
 | Annotation        | Package               | Description                                                                                                       |
 |-------------------|-----------------------|-------------------------------------------------------------------------------------------------------------------|
-| `@Entity`         | `jakarta.persistence` | Marks a class as an entity (i.e., a persistent domain object). Required for JPA entities.                         |
+| `@Entity`         | `jakarta.persistence` | Marks a class as an entity (i.e.,, a persistent domain object). Required for JPA entities.                         |
 | `@Table`          | `jakarta.persistence` | Specifies the table name for the entity. Optional if entity name matches table name.                              |
 | `@Id`             | `jakarta.persistence` | Marks a field as the primary key.                                                                                 |
 | `@GeneratedValue` | `jakarta.persistence` | Specifies strategy for generating primary key values. Common strategies: `AUTO`, `IDENTITY`, `SEQUENCE`, `TABLE`. |
 | `@Column`         | `jakarta.persistence` | Specifies column mapping details (name, nullable, unique, length, etc.).                                          |
-| `@Transient`      | `jakarta.persistence` | Marks a field as non-persistent (i.e., not stored in database).                                                   |
+| `@Transient`      | `jakarta.persistence` | Marks a field as non-persistent (i.e.,, not stored in database).                                                   |
 | `@Temporal`       | `jakarta.persistence` | Specifies temporal precision for date/time fields (`DATE`, `TIME`, `TIMESTAMP`).                                  |
 | `@Enumerated`     | `jakarta.persistence` | Specifies how to persist enum values (`STRING` or `ORDINAL`).                                                     |
 | `@Lob`            | `jakarta.persistence` | Marks a field as Large Object (for storing large data like text or binary content).                               |
