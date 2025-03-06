@@ -38,6 +38,7 @@ the correct spring profile (it has to match the one requested in the context of 
     * [Prepared statement](#prepared-statement)
     * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
 * [Fetching](#fetching)
+    * [Fetching associations](#fetching-associations)
 * [Projections](#projections)
     * [JPA projections](#jpa-projections)
         * [Tuple](#tuple)
@@ -142,7 +143,7 @@ implementation, the `SessionImpl` is directly related as well. These are commonl
 
 ## Caching
 
-Once an entity is *managed* (i.e.,, loaded) by the persistence context, it is also cached, meaning that each successive
+Once an entity is *managed* (i.e. loaded) by the persistence context, it is also cached, meaning that each successive
 request will avoid a database roundtrip.
 
 The standard caching mechanism offered by the persistence context is the so called `write-behinde` cache mechanism;
@@ -440,11 +441,82 @@ create a server-side prepared statement.
 
 ## Fetching associations
 
-By default, `@ManyToOne` and `OneToOne` associations use `FetchType.EAGER` while `@OneToMany` and `@ManyToMany` use
-`FetchType.LAZY`. The options can be overridden both by changing the attribute in the mapping or at query time by using
-an `entity graph`. 
+By default, `@ManyToOne` and `OneToOne` associations use `FetchType.LAZY` (using a LEFT JOIN) while `@OneToMany` and
+`@ManyToMany` use `FetchType.LAZY`. The options can be overridden both by changing the attribute in the mapping or at
+query time by using an `entity graph`.
+
+However, the fetching behavior when there is an eager fetch strategy is different whether we use a direct fetching (e.g.
+`entityManager.find()`) or a JPQL query (e.g. `entityManager.createQuery()`; the direct fetching uses a LEFT JOIN while
+for the JPQL query an additional query is performed to fetch the entity graph, even if not explicitly specified by the
+query itself.
 
 **N.B. Lazy fetching is only a hint, the underlying persistence provider might choose to ignore it**
+
+The fetch strategy EAGER could be used also for retrieve collections, like in a `@OneToMany` relationship, but this is a
+terrible idea.
+Imagine a Post entity with a collection of comments and collection of tags; the problem is that the resulting query will
+have a LEFT OUTER JOIN for both the comments and the tags, but tags and comments don't have any relationship between
+them, therefore, the only way in SQL to join them is by a **cartesian product** that generates all the possible records
+combination between the two tables (50 tags and 100 comments will generate 5000 rows). Slightly better would be if we
+use a JPQL query since, instead of the cartesian product, we will have three queries generated, one for the Post SELECT,
+one for the Tags (with an inner join supposing it's a `@ManyToMany` association) and one for the SELECT of Comments
+matching the Post id.
+
+### N+1 query problem
+
+When using `FetchType.LAZY`, hibernates generates a proxy to represent the uninitialized association. Imagine fetching
+three comments which have a lazy association with their Post parent entity. When first loaded, the Post property in each
+comment is represented by a proxy object of type `Post.class` which has only the identifier given by the foreign key
+coming from the Comment entity. At this point, if we try to access the Post, hibernate will execute and additional
+SELECT query to initialize the Post proxy. Now imagine fetching a collection of `N` Comments and later access their Post
+proxy in a for look or in a stream; the result will be that `N` SELECT queries will be performed to initialize the
+proxies `+1` initial query to retrieve the Comments: hence `N+1` queries have been executed when an initial left join
+would have solved the issue with just one query.
+
+Be aware that an `N+1` situation can incur also if `FetchType.EAGER` is enabled; in fact, if we write a JPQL query
+without the JOIN FETCH, hibernate will want to comply with the fetching strategy, therefore, one SELECT will be
+performed as per JPQL statement, plus N queries to fetch all the associated entities.+
+
+### Fetching multiple collections
+
+While fetching multiple `@ManyToOne` and/or `OneToOne` association only requires multiple JOIN FETCH on the child
+entities, without incurring in a cartesian product, fetching multiple collections at once can be more cumbersome.
+
+Imagine we have a Post entity with a collection of Comments and a collections of Tags in a `OneToMany` and `@ManyToMany`
+relationship respectively; now we have two scenarios trying to JOIN FETCH the collection in the same JPQL query, both
+undesirable:
+
+* If at least one of the collection is a List, we will incur in a `MultipleBagFetchException` an Hibernate exception
+  telling us that it List doesn't have a built-in mechanism to avoid duplicates (the ones that will eventually occur due
+  to the cartesian product)
+* The query is executed, but the resultset contains a number of rows equal to the cartesian product of
+  `Post * Comments * Tags` which, depending on the average size of these collections, is not optimal
+
+The solution is quite simple, i.e. fetch only one collection per query in the same persistence context
+
+## Open Session in View
+
+**N.B. always disable the Hibernate properties, since for legacy reason is enabled by default in spring**
+
+The Open Session in View is an architectural pattern that aims to hold the persistence context open throughout the whole
+web request. This allows the service to provide entity without fetching the association, leaving to the UI the ability
+to trigger the proxy if needed. The service layer is still responsible for managing the database transaction, but the
+Session is no longer closed by the `HibernateTransactionManager`.
+
+Viewed from a database prospective, there are a number of things that are undesirable:
+
+* After the Service acquire the transaction (`getPosts()`), there is no active transaction, therefore, for the UI to ask
+  for initialize an association a new database connection from the pool is required each time to execute a single fetch
+  in auto-commit mode.
+* Navigating uninitialized proxies can easily trigger a `N+1` query problem
+* No separation of concerns since not only the service layer but also the view layer can access the persistence layer
+
+![](./images/fetching/open-in-view.png)
+
+**N.B. same as for Open session in View, Hibernate has a custom property to allow a similar behavior (i.e., fetching an
+association after the persistence context is closed) and can be (BUT SHOULD NOT) be enabled through the property
+`hibernate.enable_lazy_load_no_trans`**
+
 
 ---
 
