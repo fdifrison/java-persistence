@@ -17,74 +17,130 @@ the correct spring profile (it has to match the one requested in the context of 
 # Theory
 
 <!-- TOC -->
-
 * [Theory](#theory)
+* [ACID](#acid)
+  * [Atomicity](#atomicity)
+  * [Consistency](#consistency)
+  * [Isolation](#isolation)
+  * [Durability](#durability)
 * [Connections](#connections)
 * [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
-    * [Caching](#caching)
-    * [Entity state transitions](#entity-state-transitions)
-        * [JPA EntityManager](#jpa-entitymanager)
-        * [Hibernate Session](#hibernate-session)
-            * [JPA merge vs Hibernate update](#jpa-merge-vs-hibernate-update)
-    * [Dirty checking](#dirty-checking)
-        * [Bytecode enhancement](#bytecode-enhancement)
-    * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
-    * [Flushing](#flushing)
-        * [AUTO flushing mode](#auto-flushing-mode)
-        * [Flushing in batch processing](#flushing-in-batch-processing)
-    * [Events and event listener](#events-and-event-listener)
+  * [Caching](#caching)
+  * [Entity state transitions](#entity-state-transitions)
+    * [JPA EntityManager](#jpa-entitymanager)
+    * [Hibernate Session](#hibernate-session)
+      * [JPA merge vs Hibernate update](#jpa-merge-vs-hibernate-update)
+  * [Dirty checking](#dirty-checking)
+    * [Bytecode enhancement](#bytecode-enhancement)
+  * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
+  * [Flushing](#flushing)
+    * [AUTO flushing mode](#auto-flushing-mode)
+    * [Flushing in batch processing](#flushing-in-batch-processing)
+  * [Events and event listener](#events-and-event-listener)
 * [SQL Statements: lifecycle, execution plan and caching](#sql-statements-lifecycle-execution-plan-and-caching)
-    * [Execution plan cache](#execution-plan-cache)
-    * [Prepared statement](#prepared-statement)
-    * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
+  * [Execution plan cache](#execution-plan-cache)
+  * [Prepared statement](#prepared-statement)
+  * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
 * [Fetching](#fetching)
-    * [Fetching associations](#fetching-associations)
+  * [Fetching associations](#fetching-associations)
+    * [N+1 query problem](#n1-query-problem)
+    * [Fetching multiple collections](#fetching-multiple-collections)
+  * [Open Session in View](#open-session-in-view)
 * [Projections](#projections)
-    * [JPA projections](#jpa-projections)
-        * [Tuple](#tuple)
-        * [DTO](#dto)
-            * [mapping native SQL queries](#mapping-native-sql-queries)
-    * [Hibernate projections](#hibernate-projections)
-    * [Bets approach for projecting parent-child relationship](#bets-approach-for-projecting-parent-child-relationship)
+  * [JPA projections](#jpa-projections)
+    * [Tuple](#tuple)
+    * [DTO](#dto)
+      * [mapping native SQL queries](#mapping-native-sql-queries)
+  * [Hibernate projections](#hibernate-projections)
+  * [Bets approach for projecting parent-child relationship](#bets-approach-for-projecting-parent-child-relationship)
 * [Batching in Hibernate](#batching-in-hibernate)
-    * [Bulking operations](#bulking-operations)
-    * [Batching in cascade](#batching-in-cascade)
-        * [DELETE cascade](#delete-cascade)
-        * [Batching on versioned entity](#batching-on-versioned-entity)
-    * [Default UPDATE behavior](#default-update-behavior)
+  * [Bulking operations](#bulking-operations)
+  * [Batching in cascade](#batching-in-cascade)
+    * [DELETE cascade](#delete-cascade)
+    * [Batching on versioned entity](#batching-on-versioned-entity)
+  * [Default UPDATE behavior](#default-update-behavior)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
-    * [JPA identifiers](#jpa-identifiers)
+  * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
-    * [`@ManyToOne`](#manytoone)
-        * [bidirectional](#bidirectional)
-    * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
-        * [join table](#join-table)
-            * [List vs Set Collections](#list-vs-set-collections)
-        * [`@JoinColumn`](#joincolumn)
-    * [`@OneToOne`](#onetoone)
-        * [unidirectional](#unidirectional)
-        * [bidirectional](#bidirectional-1)
-    * [`@ManyToMany`](#manytomany)
-        * [Explicit mapping](#explicit-mapping)
+  * [`@ManyToOne`](#manytoone)
+    * [bidirectional](#bidirectional)
+  * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
+    * [join table](#join-table)
+      * [List vs Set Collections](#list-vs-set-collections)
+    * [`@JoinColumn`](#joincolumn)
+  * [`@OneToOne`](#onetoone)
+    * [unidirectional](#unidirectional)
+    * [bidirectional](#bidirectional-1)
+  * [`@ManyToMany`](#manytomany)
+    * [Explicit mapping](#explicit-mapping)
 * [JPA inheritance](#jpa-inheritance)
-    * [Single table inheritance](#single-table-inheritance)
-        * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
-    * [Joined inheritance](#joined-inheritance)
-    * [Table per class](#table-per-class)
-    * [`@MappedSuperclass`](#mappedsuperclass)
+  * [Single table inheritance](#single-table-inheritance)
+    * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
+  * [Joined inheritance](#joined-inheritance)
+  * [Table per class](#table-per-class)
+  * [`@MappedSuperclass`](#mappedsuperclass)
 * [EnumType](#enumtype)
 * [Spring Data, JPA, and Hibernate Annotations Reference](#spring-data-jpa-and-hibernate-annotations-reference)
-    * [Entity Annotations](#entity-annotations)
-    * [Relationship Annotations](#relationship-annotations)
-    * [Inheritance Annotations](#inheritance-annotations)
-    * [Query Annotations](#query-annotations)
-    * [Spring Data Repository Annotations](#spring-data-repository-annotations)
-    * [Transaction Annotations](#transaction-annotations)
-    * [Auditing Annotations](#auditing-annotations)
-    * [Hibernate-Specific Annotations](#hibernate-specific-annotations)
-    * [Validation Annotations](#validation-annotations)
-
+  * [Entity Annotations](#entity-annotations)
+  * [Relationship Annotations](#relationship-annotations)
+  * [Inheritance Annotations](#inheritance-annotations)
+  * [Query Annotations](#query-annotations)
+  * [Spring Data Repository Annotations](#spring-data-repository-annotations)
+  * [Transaction Annotations](#transaction-annotations)
+  * [Auditing Annotations](#auditing-annotations)
+  * [Hibernate-Specific Annotations](#hibernate-specific-annotations)
+  * [Validation Annotations](#validation-annotations)
 <!-- TOC -->
+
+---
+
+# ACID
+
+To better understand the ACID acronym, we should first dive a bit in how a relational database works.
+
+![](./images/acid/db.png)
+
+At the very bottom we have the physical disk where the data are stored in tables/indexes; in fact, the unit of a
+database memory is not bytes, but pages (usually 8 or 16 kilobytes). Operating on the physical disk is very slow
+compared to RAM; for these reasons all the databases (also the NoSql) have an intermediate layer called
+`In-memory buffers` which synchronize a subset of the data on the disk; these are then modified and only at flush time
+the new state is copied on disk (in the same way Hibernate. when loading an entity, it stores it in the first-level
+cache).
+
+Due to I/O bandwidth, it is not possible to synchronize each transaction back to the disk because it would mean to move
+a potential huge amount of data very often (imagine an application that handles hundreds of transactions per second).
+For example, PostgreSQL, which by default allocates 25% of the RAM to the In-memory buffer, flushes the entire cache
+only once every 5 minutes. So what happens if we have a crash? Would we lose all the non-synchronized data in the cache?
+
+Of course this is not possible; therefore, we have another layer of insurance, represented by the `Redo log`. Every time
+we are commiting a writing, the database appends to the Redo log our scheduled changes. In this way, if the changes have
+not been synchronized in memory, or not flushed on the disk, when the database restarts will check the redo log and try
+to replay the operations left behind.
+
+Similarly, the `Undo log` is required to be able to roll back to the previous consistent state.
+
+An exception is PostgreSQL that doesn't use an append-only undo logs; instead it uses a `multi-version approach` which
+consists in keeping multiple versions of the same record in memory. This behavior allows faster rollbacks since no diff
+has to be computed and no log search is performed, we simply switch from one version of the object to another. The
+downside is that the previous version memory space is limited and has to be reclaimed regularly with the `VACUUM`
+operation, otherwise we may incur in a very disruptive behavior. Postgres associate with a transaction a 32-bit XID (
+with the constraint that newer transactions must have a greater XID); in a high performance application, we very short
+and frequent transactions, we might fill the four-billion transaction limit (given by the 32-bit size of the ID). If the
+VACUUM process is disabled, the XID counter will start from zero, making newer transactions look like older ones, hence
+destroying the database operability).
+
+## Atomicity
+
+Atomicity is the property of grouping a set of operations and execute them in a `unit of work`, meaning that or all the
+operations succeed or, even if one fails, the whole unit of work fails (rollback). The database has to pass from a
+consistency state to another at the end of the atomic operation. Rolling back is the action required to return to the
+previous consistent state in the case of a failure in one of the operations in the transaction.
+
+## Consistency
+
+## Isolation
+
+## Durability
 
 ---
 
