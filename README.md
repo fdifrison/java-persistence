@@ -17,79 +17,81 @@ the correct spring profile (it has to match the one requested in the context of 
 # Theory
 
 <!-- TOC -->
+
 * [Theory](#theory)
 * [ACID](#acid)
-  * [Atomicity](#atomicity)
-  * [Consistency](#consistency)
-  * [Isolation](#isolation)
-  * [Durability](#durability)
+    * [Atomicity](#atomicity)
+    * [Consistency](#consistency)
+    * [Isolation](#isolation)
+    * [Durability](#durability)
 * [Connections](#connections)
 * [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
-  * [Caching](#caching)
-  * [Entity state transitions](#entity-state-transitions)
-    * [JPA EntityManager](#jpa-entitymanager)
-    * [Hibernate Session](#hibernate-session)
-      * [JPA merge vs Hibernate update](#jpa-merge-vs-hibernate-update)
-  * [Dirty checking](#dirty-checking)
-    * [Bytecode enhancement](#bytecode-enhancement)
-  * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
-  * [Flushing](#flushing)
-    * [AUTO flushing mode](#auto-flushing-mode)
-    * [Flushing in batch processing](#flushing-in-batch-processing)
-  * [Events and event listener](#events-and-event-listener)
+    * [Caching](#caching)
+    * [Entity state transitions](#entity-state-transitions)
+        * [JPA EntityManager](#jpa-entitymanager)
+        * [Hibernate Session](#hibernate-session)
+            * [JPA merge vs Hibernate update](#jpa-merge-vs-hibernate-update)
+    * [Dirty checking](#dirty-checking)
+        * [Bytecode enhancement](#bytecode-enhancement)
+    * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
+    * [Flushing](#flushing)
+        * [AUTO flushing mode](#auto-flushing-mode)
+        * [Flushing in batch processing](#flushing-in-batch-processing)
+    * [Events and event listener](#events-and-event-listener)
 * [SQL Statements: lifecycle, execution plan and caching](#sql-statements-lifecycle-execution-plan-and-caching)
-  * [Execution plan cache](#execution-plan-cache)
-  * [Prepared statement](#prepared-statement)
-  * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
+    * [Execution plan cache](#execution-plan-cache)
+    * [Prepared statement](#prepared-statement)
+    * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
 * [Fetching](#fetching)
-  * [Fetching associations](#fetching-associations)
-    * [N+1 query problem](#n1-query-problem)
-    * [Fetching multiple collections](#fetching-multiple-collections)
-  * [Open Session in View](#open-session-in-view)
+    * [Fetching associations](#fetching-associations)
+        * [N+1 query problem](#n1-query-problem)
+        * [Fetching multiple collections](#fetching-multiple-collections)
+    * [Open Session in View](#open-session-in-view)
 * [Projections](#projections)
-  * [JPA projections](#jpa-projections)
-    * [Tuple](#tuple)
-    * [DTO](#dto)
-      * [mapping native SQL queries](#mapping-native-sql-queries)
-  * [Hibernate projections](#hibernate-projections)
-  * [Bets approach for projecting parent-child relationship](#bets-approach-for-projecting-parent-child-relationship)
+    * [JPA projections](#jpa-projections)
+        * [Tuple](#tuple)
+        * [DTO](#dto)
+            * [mapping native SQL queries](#mapping-native-sql-queries)
+    * [Hibernate projections](#hibernate-projections)
+    * [Bets approach for projecting parent-child relationship](#bets-approach-for-projecting-parent-child-relationship)
 * [Batching in Hibernate](#batching-in-hibernate)
-  * [Bulking operations](#bulking-operations)
-  * [Batching in cascade](#batching-in-cascade)
-    * [DELETE cascade](#delete-cascade)
-    * [Batching on versioned entity](#batching-on-versioned-entity)
-  * [Default UPDATE behavior](#default-update-behavior)
+    * [Bulking operations](#bulking-operations)
+    * [Batching in cascade](#batching-in-cascade)
+        * [DELETE cascade](#delete-cascade)
+        * [Batching on versioned entity](#batching-on-versioned-entity)
+    * [Default UPDATE behavior](#default-update-behavior)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
-  * [JPA identifiers](#jpa-identifiers)
+    * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
-  * [`@ManyToOne`](#manytoone)
-    * [bidirectional](#bidirectional)
-  * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
-    * [join table](#join-table)
-      * [List vs Set Collections](#list-vs-set-collections)
-    * [`@JoinColumn`](#joincolumn)
-  * [`@OneToOne`](#onetoone)
-    * [unidirectional](#unidirectional)
-    * [bidirectional](#bidirectional-1)
-  * [`@ManyToMany`](#manytomany)
-    * [Explicit mapping](#explicit-mapping)
+    * [`@ManyToOne`](#manytoone)
+        * [bidirectional](#bidirectional)
+    * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
+        * [join table](#join-table)
+            * [List vs Set Collections](#list-vs-set-collections)
+        * [`@JoinColumn`](#joincolumn)
+    * [`@OneToOne`](#onetoone)
+        * [unidirectional](#unidirectional)
+        * [bidirectional](#bidirectional-1)
+    * [`@ManyToMany`](#manytomany)
+        * [Explicit mapping](#explicit-mapping)
 * [JPA inheritance](#jpa-inheritance)
-  * [Single table inheritance](#single-table-inheritance)
-    * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
-  * [Joined inheritance](#joined-inheritance)
-  * [Table per class](#table-per-class)
-  * [`@MappedSuperclass`](#mappedsuperclass)
+    * [Single table inheritance](#single-table-inheritance)
+        * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
+    * [Joined inheritance](#joined-inheritance)
+    * [Table per class](#table-per-class)
+    * [`@MappedSuperclass`](#mappedsuperclass)
 * [EnumType](#enumtype)
 * [Spring Data, JPA, and Hibernate Annotations Reference](#spring-data-jpa-and-hibernate-annotations-reference)
-  * [Entity Annotations](#entity-annotations)
-  * [Relationship Annotations](#relationship-annotations)
-  * [Inheritance Annotations](#inheritance-annotations)
-  * [Query Annotations](#query-annotations)
-  * [Spring Data Repository Annotations](#spring-data-repository-annotations)
-  * [Transaction Annotations](#transaction-annotations)
-  * [Auditing Annotations](#auditing-annotations)
-  * [Hibernate-Specific Annotations](#hibernate-specific-annotations)
-  * [Validation Annotations](#validation-annotations)
+    * [Entity Annotations](#entity-annotations)
+    * [Relationship Annotations](#relationship-annotations)
+    * [Inheritance Annotations](#inheritance-annotations)
+    * [Query Annotations](#query-annotations)
+    * [Spring Data Repository Annotations](#spring-data-repository-annotations)
+    * [Transaction Annotations](#transaction-annotations)
+    * [Auditing Annotations](#auditing-annotations)
+    * [Hibernate-Specific Annotations](#hibernate-specific-annotations)
+    * [Validation Annotations](#validation-annotations)
+
 <!-- TOC -->
 
 ---
@@ -127,7 +129,7 @@ operation, otherwise we may incur in a very disruptive behavior. Postgres associ
 with the constraint that newer transactions must have a greater XID); in a high performance application, we very short
 and frequent transactions, we might fill the four-billion transaction limit (given by the 32-bit size of the ID). If the
 VACUUM process is disabled, the XID counter will start from zero, making newer transactions look like older ones, hence
-destroying the database operability).
+destroying the database).
 
 ## Atomicity
 
@@ -138,9 +140,47 @@ previous consistent state in the case of a failure in one of the operations in t
 
 ## Consistency
 
-## Isolation
+Consistency is the property ensuring that a transaction state change leaves the database in a proper state, without
+violating the constraint described by the schemas (column type, nullability, pk and fk constraints etc.).
+Again, if only one validation fails, all the transaction is rolled back and the database state isr restored to prior the
+transaction
+
+### CAP theorem
+
+The CAP theorem states that when a distributed system encounters a network partition, it needs to choose between
+Consistency and Availability, can't have both. However, in this context, Consistency has a different meaning that in
+ACID since it refers to an isolation guarantee called `linearizability`, i.e., the ability to always read the latest
+state of a variable (something that in a distributed system, where we have follower nodes from which we can also read
+and a replication lag, it is not guaranteed)
+
+## Isolation (added il SQL 92)
+
+Since databases are not meant to be accessed by only one user at a time.
+It instead needs to sustain multiple concurrent connections; there is a need to ensure `Serializability`, meaning that
+even in a concurrent environment we need an outcome equivalent to a serial execution. Therefore, rules are required to
+orchestrate the concurrent reads and writes so that conflicts don't occur, compromising data integrity. Note that
+serializability itself doesn't concern about time, instead we can think it as the property that ensures that the reads
+and the writes of a user A are not interleaved by reads or writes of user B, but the operation of A and B can be
+interchanged in time.
+Linearizability instead concerns the ability to read the latest state of a variable. The conjunction of serializability
+and linearizability is the golden standard of isolation level: `Strinct Serializability` which, however, almost always
+comes at an unbearable cost for a real production environment.
+
+As a fact, we always have to come down to a compromise, which ensures a satisfactory level of isolation while
+still enabling a sufficient concurrency (we are most of the time in a `read commits` isolation level) or, in
+alternative, use a persistence provider like `VoltDB` which works only in-memory and single threaded, thus guarantying
+Serializability.
+
+![](./images/acid/isolation.png)
 
 ## Durability
+
+Durability ensures that all committed transaction changes become permanent, something that it's ensured by the
+`redo log`.
+
+In Postgres there is something equivalent called `WAL` Write-Ahead Log which can be flushed asynchronously.
+While the log entries are buffered in memory and flushed every transaction commits, the cashed pages and indexes don't
+since their state can be restored from the WAL, thus optimizing I/O utilization.
 
 ---
 
