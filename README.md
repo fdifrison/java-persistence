@@ -22,7 +22,8 @@ the correct spring profile (it has to match the one requested in the context of 
 * [ACID](#acid)
     * [Atomicity](#atomicity)
     * [Consistency](#consistency)
-    * [Isolation](#isolation)
+        * [CAP theorem](#cap-theorem)
+    * [Isolation (added il SQL 92)](#isolation-added-il-sql-92)
     * [Durability](#durability)
 * [Connections](#connections)
 * [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
@@ -122,10 +123,10 @@ to replay the operations left behind.
 Similarly, the `Undo log` is required to be able to roll back to the previous consistent state.
 
 An exception is PostgreSQL that doesn't use an append-only undo logs; instead it uses a `multi-version approach` which
-consists in keeping multiple versions of the same record in memory. This behavior allows faster rollbacks since no diff
+consists in keeping multiple versions of the same record in memory. This behaviour allows faster rollbacks since no diff
 has to be computed and no log search is performed, we simply switch from one version of the object to another. The
 downside is that the previous version memory space is limited and has to be reclaimed regularly with the `VACUUM`
-operation, otherwise we may incur in a very disruptive behavior. Postgres associate with a transaction a 32-bit XID (
+operation, otherwise we may incur in a very disruptive behaviour. Postgres associate with a transaction a 32-bit XID (
 with the constraint that newer transactions must have a greater XID); in a high performance application, we very short
 and frequent transactions, we might fill the four-billion transaction limit (given by the 32-bit size of the ID). If the
 VACUUM process is disabled, the XID counter will start from zero, making newer transactions look like older ones, hence
@@ -142,7 +143,7 @@ previous consistent state in the case of a failure in one of the operations in t
 
 Consistency is the property ensuring that a transaction state change leaves the database in a proper state, without
 violating the constraint described by the schemas (column type, nullability, pk and fk constraints etc.).
-Again, if only one validation fails, all the transaction is rolled back and the database state isr restored to prior the
+Again, if only one validation fails, all the transaction is rolled back and the database state is restored to prior the
 transaction
 
 ### CAP theorem
@@ -153,26 +154,6 @@ ACID since it refers to an isolation guarantee called `linearizability`, i.e., t
 state of a variable (something that in a distributed system, where we have follower nodes from which we can also read
 and a replication lag, it is not guaranteed)
 
-## Isolation (added il SQL 92)
-
-Since databases are not meant to be accessed by only one user at a time.
-It instead needs to sustain multiple concurrent connections; there is a need to ensure `Serializability`, meaning that
-even in a concurrent environment we need an outcome equivalent to a serial execution. Therefore, rules are required to
-orchestrate the concurrent reads and writes so that conflicts don't occur, compromising data integrity. Note that
-serializability itself doesn't concern about time, instead we can think it as the property that ensures that the reads
-and the writes of a user A are not interleaved by reads or writes of user B, but the operation of A and B can be
-interchanged in time.
-Linearizability instead concerns the ability to read the latest state of a variable. The conjunction of serializability
-and linearizability is the golden standard of isolation level: `Strinct Serializability` which, however, almost always
-comes at an unbearable cost for a real production environment.
-
-As a fact, we always have to come down to a compromise, which ensures a satisfactory level of isolation while
-still enabling a sufficient concurrency (we are most of the time in a `read commits` isolation level) or, in
-alternative, use a persistence provider like `VoltDB` which works only in-memory and single threaded, thus guarantying
-Serializability.
-
-![](./images/acid/isolation.png)
-
 ## Durability
 
 Durability ensures that all committed transaction changes become permanent, something that it's ensured by the
@@ -180,7 +161,109 @@ Durability ensures that all committed transaction changes become permanent, some
 
 In Postgres there is something equivalent called `WAL` Write-Ahead Log which can be flushed asynchronously.
 While the log entries are buffered in memory and flushed every transaction commits, the cashed pages and indexes don't
-since their state can be restored from the WAL, thus optimizing I/O utilization.
+since their state can be restored from the WAL, thus optimising I/O utilization.
+
+## Isolation (added il SQL 92)
+
+Databases are not meant to be accessed by only one user at a time.
+They instead need to sustain multiple concurrent connections; there is a need to ensure `Serializability`, meaning that
+even in a concurrent environment we need an outcome equivalent to a serial execution. Therefore, rules are required to
+orchestrate the concurrent reads and writes so that conflicts don't occur, compromising data integrity. Note that
+serializability itself doesn't concern about time, instead we can think it as the property that ensures that the **reads
+and the writes of a user `A` are not interleaved by reads or writes of user `B`, but the operation of `A` and `B` can
+still be interchanged in time.**
+Linearizability instead is about time; it concerns the ability to read the latest state of a variable.
+The conjunction of serializability and linearizability is the golden standard of isolation level:
+`Strict Serializability` which, however, almost always comes at an unbearable cost for a real production environment.
+
+As a fact, we always have to come down to a compromise, which ensures a satisfactory level of isolation while
+still enabling a sufficient concurrency (we are most of the time in a `read commited` isolation level) or, in
+alternative, use a persistence provider like `VoltDB` which works only in-memory and single threaded, thus guarantying
+Serializability.
+
+![](./images/acid/isolation.png)
+
+### Concurrency control
+
+The strategies applied to RDBMS to avoid data conflicts fall under the name of `concurrency control`. We can choose to
+avoid the conflicts completely (e.g. two-phase locking) controlling access to shared resources, or to somehow detecting
+the conflicts (e.g. MVCC multi-version concurrency control), with a gain in performance (better concurrency) but
+relaxing the serializability constraint and accepting possible data anomalies.
+
+A certain number of locks will be required whichever path we choose, in two-phase locking we simply have more. Also,
+locking can happen at different database hierarchy levels, from rows to pages; depending on the use case the database
+could choose to substitute multiple low levels lock on rows to a single upper level lock on the page (since locks are
+takes resources). Two-phase locking requires a lot of waiting time since, to achieve strict serializability, read lock
+blocks write operations and write lock block read operations.
+Even if each database system has its own lock hierarchy, the most common are:
+
+* `shared lock` (read lock) which allows for concurrent reads but prevent writing, hence if I acquire a read lock, also
+  others can have it, but no one can write on the record
+* `exclusive lock` (write lock) preventing both read and write operations, hence nobody can read or write the record
+  until my modification are not committed
+
+No matter the strategy we choose, the database has to acquire an exclusive lock when a user wants to commit a change to
+a record; therefore, if multiple users are trying to perform an operation that will eventually impact the same record a
+`deadlock` can happen, meaning that both the users hold a lock on interconnected data (think of a parent post entity and
+a child comment entity). If this happens, the database will need to kill one of the two processes, triggering a rollback
+and the release of the locks, so that at least one transaction can be finalised. Usually, the discriminant is always the
+cost in terms of resources for the database, the operation that requires less effort to resolve the deadlock will be
+performed (e.g. the transaction that holds fewer locks is more likely to be killed). Some databases instead use time as
+discriminant: the transaction that started first is the one that holds the right to survive.
+
+In Java, `Synchronized` is a `exclusive lock`, while `shared lock` can be implemented with `ReadWriteLock` from the
+concurrency API.
+
+### MVCC
+
+Most database systems nowadays use by default a `Multi-Version Concurrency Control` to overcome the transaction response
+time and the scalability issue inherent in the two-phase locking mechanism. The premises of MVCC are that readers and
+writers do not block each other; the only source of contention is concurrent writers which will undermine atomicity.
+Essentially, to prevent blocking, a previous version of a record can be rebuild so that an uncommited change can be
+hidden from concurrent readers. The name multi-version effectively comes from the fact that at a certain point in time,
+we can have multiple versions of the same record. For example, postgresql stores two additional columns in our entities,
+`xmin` and `xmax`, which are used to control the visibility of various row versions; an update statement first deletes a
+record and then recreates it with the updated value. However, until committed, both versions of the record exist. Other
+database vendors have only one version of the record at the time but store the difference between caused by the update
+in the undo log.
+
+#### Amdahl's law
+
+![](./images/acid/amdahl.png)
+
+The more locks our application needs to acquire, the less parallelization we can achieve, and this is shown by the
+`Amdahl's law` with the correction of `Neil Gunter` which states that the throughput that we can achieve `C(N)` has a
+saturation point in which, increasing the number of threads or connections `N` won't increase performances; on the
+contrary, performances will start deteriorating due to the cost of synchronisation (coherency cost).
+This is one of the reasons why two-phase locking has been abandoned, since moder application now requires a number of
+transactions per seconds that are orders of magnitude greater tha when the approach was developed in 1981.
+Only `SQL server` nowadays still uses two-phase locking has the default mechanism.
+
+## Phenomena
+
+The new paradigm of abandoning strict serializability for a lower isolation level, opens the door to `phenomena`, hence
+the possibility of data inconsistency. The lower is the isolation level, the more phenomena are allowed; this means that
+**we are shifting the responsibility of data integrity from the database to the application level**.
+
+The phenomena are:
+
+* `dirty read`: a user reads a not yet committed write from another user; if the write operation abort and rollback, a
+  database record does not reference what the first user is reading, since it was only a temporary value. This can
+  sometimes be a feature, for example, to read the intermediate state of a batch operation involving multiple rows, or
+  to know the advancement status of the batch process. If a read lock is used, dirty read is not possible but also the
+  ability to read the intermediate state. (the same operation can be achieved by `read uncommitted` isolation level but
+  not all the database systems allow it)
+* `non-repeatable read`: two consecutive reads by the same user return a different result because an update operation of
+  a second user interleaved; this can be a problem because the first user might have done some logic based on the first
+  read that is no more applicable with the result of the second read
+* `phantom read`: similar to non-repeatable reads but extended to a whole result set and not a single record (e.g. a
+  find all on the comments of a post). To avoid this, we need a `predicate lock`.
+* `dirty write` (theoretical): a record modified by two separate transactions with the first transaction yet not
+  committed (no exclusive lock is taken by the first transaction). Since it breaks atomicity (the database doesn't know
+  to which state rollback), it is prevented by all database vendor
+* `read skew`
+* `write skew`
+* `lost update`
 
 ---
 
