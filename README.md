@@ -261,9 +261,24 @@ The phenomena are:
 * `dirty write` (theoretical): a record modified by two separate transactions with the first transaction yet not
   committed (no exclusive lock is taken by the first transaction). Since it breaks atomicity (the database doesn't know
   to which state rollback), it is prevented by all database vendor
-* `read skew`
-* `write skew`
-* `lost update`
+* `read skew`: means reading from different transactions states; imagine a user is reading a post in its transaction and
+  in the same time another user modifies the same post, and its child entity post_detail and commits. Now, if the first
+  user, in the same transaction tries to access the post_detail will see the changes from the second user while still
+  seeing the post, fetched previously, as unmodified.
+* `write skew`: similar to read skew, the writes from two users that reads the same record that holds a child entity and
+  then try to modify it in the same transaction gets mixed; this cannot be prevented in t MVCC because we can have a
+  lock only on a single record and not on its entire graph.
+* `lost update`: a user reads a record, and before modifying it another user reads the same record and performs an
+  update; the first users update won't be aware of the changes performed by the second user leading to an unexpected
+  outcome since the first user starting point is different from the current state of the record in the database, hence
+  an update has been lost from the first user
+
+![](./images/acid/levels.png)
+
+N.B. in PostgreSQL `Serializable` is not achieved by tho-phase locking but by a new implementation called
+`serializable snapshot isolation` which check the schedule and determines if there are cycles.
+
+N.B. `repetable read` is equivalent to `snapshot isolation` 
 
 ---
 
