@@ -23,8 +23,12 @@ the correct spring profile (it has to match the one requested in the context of 
     * [Atomicity](#atomicity)
     * [Consistency](#consistency)
         * [CAP theorem](#cap-theorem)
-    * [Isolation (added il SQL 92)](#isolation-added-il-sql-92)
     * [Durability](#durability)
+    * [Isolation (added il SQL 92)](#isolation-added-il-sql-92)
+        * [Concurrency control](#concurrency-control)
+        * [MVCC](#mvcc)
+            * [Amdahl's law](#amdahls-law)
+    * [Phenomena](#phenomena)
 * [Connections](#connections)
 * [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
     * [Caching](#caching)
@@ -277,8 +281,60 @@ The phenomena are:
 
 N.B. in PostgreSQL `Serializable` is not achieved by tho-phase locking but by a new implementation called
 `serializable snapshot isolation` which check the schedule and determines if there are cycles.
+Also, `repetable reads` views the database as of the beginning of the user transaction while `read committed` views the
+database as of the beginning of the query
 
-N.B. `repetable read` is equivalent to `snapshot isolation` 
+N.B. `repetable read` is equivalent to `snapshot isolation`
+
+---
+
+# Locks
+
+Lock can be fundamentally divided in two types: `Physical` or `Pessimistic` locks and `Logical` or `Optimistic` locks.
+Pessimistic lock divides in two subcategories:
+
+* Implicit -> Isolation level (see [](#isolation-added-il-sql-92))
+* Explicit -> SQL statements like `FOR UPDATE` or `FOR SHARE` in postgres
+
+## Explicit locks
+
+Focusing on postgres, we have the `LockMode.PESSIMISTIC_READ` which is equivalent to the `FOR SHARE` sql statement
+(other databases like Oracle don't have it, it falls back to an exclusive lock) which allows other to read the same
+record but not to acquire an exclusive lock, like a `FOR UPDATE` statement, which will modify the record.
+
+The `LockMode.PESSIMISTIC_WRITE` is equivalent to the `FOR UPDATE` sql statement and correspond to an exclusive lock.
+Basically we emulate 2PL on top of MVCC, nobody can update or delete the record that we've previously locked. In
+postgres, a user can still insert a record associated with the predicate that has been locked (e.g. the first user has
+locked for update a post and all its comments, a second user can still insert a new comment). However, this is a
+peculiarity of postgres; MySql, for example, will block the insert until the lock is released. This is called a
+`Predicate lock` and postgres don't support it natively; to have the same behaviour we need to explicitly say that we
+want a lock on the whole table with:
+
+```sql
+LOCK TABLE post
+    IN SHARE ROW EXCLUSIVE MODE
+    NOWAIT 
+```
+
+### Hibernate-specific LockOptions
+
+Hibernate has its lock option enumeration that allows for finer grain the lock mode; for example, we can specify how
+long we allow the transaction to wait for lock acquisition (equivalent to add a sql `FOR UPDATE WAIT`). Similarly,
+`NO_WAIT` (equivalent to `FOR UPDATE NOWAIT` in SQL) has the same purpose, meaning that we want to avoid the transaction
+to stall while acquiring a lock; with NO WAIT we are telling the transaction to check if a lock is present on the record
+nad in that case to immediately abort.
+
+### SKIP_LOCKED
+
+`LockOptions.SKIP_LOCKED` is the only way we can execute queue-based processing tasks on a relational database. Imagine
+to have a queue of jobs that needs to be processed by multiple workers, and we need to ensure that each job is processed
+only once. To avoid that the same job is taken, we could think to use the `FOR UPDATE` lock, but this will create a
+bottleneck where all the workers fight for the same lock. By using `FOR UPDATE SKIP LOCKED` instead we are allowing for
+parallel processing of the jobs by multiple workers since each will try to find an unlocked job without waiting.
+
+### Advisory lock
+
+Advisory locks are an exclusive of postgres; they can be both session or transaction-based
 
 ---
 
@@ -1423,108 +1479,3 @@ An EnumType can be mapped to a database column in 3 ways:
   ![psql-custom-type.png](./images/enumtype/psql-custom-type.png)
 
 ---
-
-# Spring Data, JPA, and Hibernate Annotations Reference
-
-## Entity Annotations
-
-| Annotation        | Package               | Description                                                                                                       |
-|-------------------|-----------------------|-------------------------------------------------------------------------------------------------------------------|
-| `@Entity`         | `jakarta.persistence` | Marks a class as an entity (i.e.,, a persistent domain object). Required for JPA entities.                        |
-| `@Table`          | `jakarta.persistence` | Specifies the table name for the entity. Optional if entity name matches table name.                              |
-| `@Id`             | `jakarta.persistence` | Marks a field as the primary key.                                                                                 |
-| `@GeneratedValue` | `jakarta.persistence` | Specifies strategy for generating primary key values. Common strategies: `AUTO`, `IDENTITY`, `SEQUENCE`, `TABLE`. |
-| `@Column`         | `jakarta.persistence` | Specifies column mapping details (name, nullable, unique, length, etc.).                                          |
-| `@Transient`      | `jakarta.persistence` | Marks a field as non-persistent (i.e.,, not stored in database).                                                  |
-| `@Temporal`       | `jakarta.persistence` | Specifies temporal precision for date/time fields (`DATE`, `TIME`, `TIMESTAMP`).                                  |
-| `@Enumerated`     | `jakarta.persistence` | Specifies how to persist enum values (`STRING` or `ORDINAL`).                                                     |
-| `@Lob`            | `jakarta.persistence` | Marks a field as Large Object (for storing large data like text or binary content).                               |
-
-## Relationship Annotations
-
-| Annotation    | Package                     | Description                                                      |
-|---------------|-----------------------------|------------------------------------------------------------------|
-| `@OneToOne`   | `jakarta.persistence`       | Defines a one-to-one relationship between entities.              |
-| `@OneToMany`  | `jakarta.persistence`       | Defines a one-to-many relationship between entities.             |
-| `@ManyToOne`  | `jakarta.persistence`       | Defines a many-to-one relationship between entities.             |
-| `@ManyToMany` | `jakarta.persistence`       | Defines a many-to-many relationship between entities.            |
-| `@JoinColumn` | `jakarta.persistence`       | Specifies the foreign key column in relationships.               |
-| `@JoinTable`  | `jakarta.persistence`       | Specifies the join table for `@ManyToMany` relationships.        |
-| `@ForeignKey` | `org.Hibernate.annotations` | Defines the constraint for a foreign key.                        |
-| `@MapsId`     | `jakarta.persistence`       | Maps a relationship to use the identifier of the related entity. |
-
-## Inheritance Annotations
-
-| Annotation             | Package               | Description                                                                                                    |
-|------------------------|-----------------------|----------------------------------------------------------------------------------------------------------------|
-| `@Inheritance`         | `jakarta.persistence` | Specifies inheritance strategy for entity class hierarchies: `SINGLE_TABLE`, `JOINED`, or `TABLE_PER_CLASS`.   |
-| `@DiscriminatorColumn` | `jakarta.persistence` | Specifies the discriminator column for `SINGLE_TABLE` inheritance strategy.                                    |
-| `@DiscriminatorValue`  | `jakarta.persistence` | Specifies the discriminator value for a specific entity in the hierarchy.                                      |
-| `@MappedSuperclass`    | `jakarta.persistence` | Marks a class as a mapped superclass (not an entity itself, but provides persistent properties to subclasses). |
-
-## Query Annotations
-
-| Annotation          | Package                                   | Description                                                          |
-|---------------------|-------------------------------------------|----------------------------------------------------------------------|
-| `@Query`            | `org.springframework.data.jpa.repository` | Defines a custom JPQL or native SQL query for repository methods.    |
-| `@Procedure`        | `org.springframework.data.jpa.repository` | Maps a repository method to a stored procedure.                      |
-| `@Modifying`        | `org.springframework.data.jpa.repository` | Indicates that a query method should modify data (UPDATE or DELETE). |
-| `@NamedQuery`       | `jakarta.persistence`                     | Defines a named JPQL query at the entity level.                      |
-| `@NamedNativeQuery` | `jakarta.persistence`                     | Defines a named native SQL query at the entity level.                |
-| `@QueryHints`       | `org.springframework.data.jpa.repository` | Applies JPA query hints to the query.                                |
-| `@Lock`             | `org.springframework.data.jpa.repository` | Specifies the lock mode for the query.                               |
-
-## Spring Data Repository Annotations
-
-| Annotation               | Package                                          | Description                                                                  |
-|--------------------------|--------------------------------------------------|------------------------------------------------------------------------------|
-| `@Repository`            | `org.springframework.stereotype`                 | Marks a class as a repository, eligible for Spring exception translation.    |
-| `@RepositoryDefinition`  | `org.springframework.data.repository`            | Creates a custom repository interface without extending standard interfaces. |
-| `@NoRepositoryBean`      | `org.springframework.data.repository`            | Indicates that an interface should not be instantiated as a repository.      |
-| `@Param`                 | `org.springframework.data.repository`            | Binds method parameters to query parameters in custom queries.               |
-| `@EnableJpaRepositories` | `org.springframework.data.jpa.repository.config` | Enables JPA repositories in Spring Boot application.                         |
-
-## Transaction Annotations
-
-| Annotation       | Package                                      | Description                                                            |
-|------------------|----------------------------------------------|------------------------------------------------------------------------|
-| `@Transactional` | `org.springframework.transaction.annotation` | Declares transaction boundaries and attributes for methods or classes. |
-| `@Rollback`      | `org.springframework.test.annotation`        | Specifies whether a test-managed transaction should be rolled back.    |
-| `@Commit`        | `org.springframework.test.annotation`        | Specifies that a test-managed transaction should be committed.         |
-
-## Auditing Annotations
-
-| Annotation           | Package                                          | Description                                               |
-|----------------------|--------------------------------------------------|-----------------------------------------------------------|
-| `@CreatedDate`       | `org.springframework.data.annotation`            | Marks a field to be set with creation timestamp.          |
-| `@LastModifiedDate`  | `org.springframework.data.annotation`            | Marks a field to be set with last modification timestamp. |
-| `@CreatedBy`         | `org.springframework.data.annotation`            | Marks a field to be set with the creator's ID.            |
-| `@LastModifiedBy`    | `org.springframework.data.annotation`            | Marks a field to be set with the last modifier's ID.      |
-| `@EnableJpaAuditing` | `org.springframework.data.jpa.repository.config` | Enables JPA auditing in Spring Boot application.          |
-
-## Hibernate-Specific Annotations
-
-| Annotation           | Package                     | Description                                                                   |
-|----------------------|-----------------------------|-------------------------------------------------------------------------------|
-| `@Formula`           | `org.Hibernate.annotations` | Defines a SQL expression to compute a column value.                           |
-| `@Where`             | `org.Hibernate.annotations` | Adds an SQL WHERE clause to an entity or collection mapping.                  |
-| `@Filter`            | `org.Hibernate.annotations` | Enables dynamic filtering of query results.                                   |
-| `@FilterDef`         | `org.Hibernate.annotations` | Defines a named filter with parameters.                                       |
-| `@Cache`             | `org.Hibernate.annotations` | Specifies caching strategy for an entity or collection.                       |
-| `@DynamicUpdate`     | `org.Hibernate.annotations` | Instructs Hibernate to include only changed columns in the UPDATE statement.  |
-| `@DynamicInsert`     | `org.Hibernate.annotations` | Instructs Hibernate to include only non-null columns in the INSERT statement. |
-| `@OptimisticLocking` | `org.Hibernate.annotations` | Specifies the optimistic locking strategy.                                    |
-| `@NaturalId`         | `org.Hibernate.annotations` | Marks properties that form a natural ID.                                      |
-| `@Immutable`         | `org.Hibernate.annotations` | Marks an entity or collection as immutable (read-only).                       |
-
-## Validation Annotations
-
-| Annotation | Package                          | Description                                                                     |
-|------------|----------------------------------|---------------------------------------------------------------------------------|
-| `@NotNull` | `jakarta.validation.constraints` | Ensures a field is not null.                                                    |
-| `@Size`    | `jakarta.validation.constraints` | Validates that the size of a string, collection, or array is within boundaries. |
-| `@Min`     | `jakarta.validation.constraints` | Validates that a number is greater than or equal to the value.                  |
-| `@Max`     | `jakarta.validation.constraints` | Validates that a number is less than or equal to the value.                     |
-| `@Pattern` | `jakarta.validation.constraints` | Validates that a string matches a regex pattern.                                |
-| `@Email`   | `jakarta.validation.constraints` | Validates that a string is a valid email address.                               |
-| `@Valid`   | `jakarta.validation`             | Cascades validation to associated objects.                                      |
