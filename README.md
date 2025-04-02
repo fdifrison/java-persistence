@@ -334,7 +334,21 @@ parallel processing of the jobs by multiple workers since each will try to find 
 
 ### Advisory lock
 
-Advisory locks are an exclusive of postgres; they can be both session or transaction-based
+Advisory locks are an exclusive of postgres; they can be both session-based or transaction-based and are means to
+perform application-level concurrency control. Session-based advisory locks are not reentrant, meaning that once
+acquired, they need to be explicitly released; Transaction-based advisory locks instead, like any other row-level locks,
+are released automatically when the transaction is committed or rolled back.
+The advisory locks can be `shared` or `esclusive`  with the same behaviour of a FOR SHARED and FOR UPDATE lock.
+Advisory locks are a low level way to reduce the risks of race conditions, in particular when more than one server nodes
+act on a single persistence unit; since they are at database level, they can span across multiple threads and JVM nodes.
+
+Imaging to have several nodes trying to read the same file which has a certain size and therefore takes some time to be
+buffered; we want each node to be able to read a consistent state of the file, i.e. we want it to have a shared lock so
+that other nodes are able to read the file as well, but none is able to modify it until every reader as concluded the
+buffering and released the shared lock.
+If one node wants to write to the file, it needs to acquire an exclusive lock since we don't want other nodes to be able
+to read an inconsistent state.
+
 
 ---
 
