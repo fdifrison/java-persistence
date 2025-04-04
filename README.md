@@ -29,6 +29,11 @@ the correct spring profile (it has to match the one requested in the context of 
         * [MVCC](#mvcc)
             * [Amdahl's law](#amdahls-law)
     * [Phenomena](#phenomena)
+* [Locks](#locks)
+    * [Explicit locks](#explicit-locks)
+        * [Hibernate-specific LockOptions](#hibernate-specific-lockoptions)
+        * [SKIP_LOCKED](#skip_locked)
+        * [Advisory lock](#advisory-lock)
 * [Connections](#connections)
 * [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
     * [Caching](#caching)
@@ -86,16 +91,6 @@ the correct spring profile (it has to match the one requested in the context of 
     * [Table per class](#table-per-class)
     * [`@MappedSuperclass`](#mappedsuperclass)
 * [EnumType](#enumtype)
-* [Spring Data, JPA, and Hibernate Annotations Reference](#spring-data-jpa-and-hibernate-annotations-reference)
-    * [Entity Annotations](#entity-annotations)
-    * [Relationship Annotations](#relationship-annotations)
-    * [Inheritance Annotations](#inheritance-annotations)
-    * [Query Annotations](#query-annotations)
-    * [Spring Data Repository Annotations](#spring-data-repository-annotations)
-    * [Transaction Annotations](#transaction-annotations)
-    * [Auditing Annotations](#auditing-annotations)
-    * [Hibernate-Specific Annotations](#hibernate-specific-annotations)
-    * [Validation Annotations](#validation-annotations)
 
 <!-- TOC -->
 
@@ -291,12 +286,13 @@ N.B. `repetable read` is equivalent to `snapshot isolation`
 # Locks
 
 Lock can be fundamentally divided in two types: `Physical` or `Pessimistic` locks and `Logical` or `Optimistic` locks.
+
+## Pessimistic locks
+
 Pessimistic lock divides in two subcategories:
 
 * Implicit -> Isolation level (see [](#isolation-added-il-sql-92))
 * Explicit -> SQL statements like `FOR UPDATE` or `FOR SHARE` in postgres
-
-## Explicit locks
 
 Focusing on postgres, we have the `LockMode.PESSIMISTIC_READ` which is equivalent to the `FOR SHARE` sql statement
 (other databases like Oracle don't have it, it falls back to an exclusive lock) which allows other to read the same
@@ -349,6 +345,108 @@ buffering and released the shared lock.
 If one node wants to write to the file, it needs to acquire an exclusive lock since we don't want other nodes to be able
 to read an inconsistent state.
 
+## Optimistic Locks
+
+Optimistic locks divides in two subcategories:
+
+* Implicit -> `@Version`
+* Explicit -> `LockModeType.OPTIMISTIC_FORCE_INCREMENT`
+
+Other than rely solely on database-specific locking strategy, we can move the concurrency control to the application
+level, implementing our own algorithm or relying on the support of data access framework such as Hibernate.
+One way to implement optimistic locking is by the use of one extra column that stores the version of the record we are
+reading. This is called a `clock` that can be either physical (i.e. a column storing a timestamp) or logical with
+`@Version`, basically an incremental number. Computers don't have an atomic clock, therefore using a physical clock is
+generally not a good choice; there can be oscillation (in terms of milliseconds) due to the adjustments that the network
+time protocol tries to perform on the System clock. This means that `System.currentTimeMillis` is not strictly
+monotonic. Moreover, there are leap seconds and time zones that are other challenges that might become a problem when
+trying to perform a concurrency control using a timestamp.
+
+Hence, the better alternative to apply implicit optimistic locking is to use a `@Version`, an incremental number, which
+can easily be a `short`, not even an `int` (if we don't think that our record might get changed more than 65k times
+between a read and a write). N.B. the difference between an int and a short is 2 bytes for each record, if we have a
+lot of records, it will matter!
+
+```java
+
+@Version
+private short version;
+```
+
+The needs of application-level transaction arise from the fact that a logical transaction may be composed by multiple
+web requests that include the time the user thinking time; we call these `long conversation`.
+Span a database transaction over a long conversation is not practical since it would mean that a lock is held for a very
+long time, hurting scalability.
+
+### Preventing lost update
+
+Imagine being on a shopping website, where we select a product, put it in our basket, and then we spend some time
+thinking if actually we want to buy it. Behind the scene, the website has a batch job connected to the warehouse
+application that periodically updates the availability of the products. When we finally decide to buy the selected
+product, we have updated information related to its actual availability. We could easily incur in a lost update, where
+our credit card is being charged, while in reality there is no product left in the warehouse. Or, from the server
+perspective if our conversation is stateful, we could override the update carried out by the warehouse batch job, still
+paying for a product we would never receive and messing up the database consistency.
+
+![](./images/lock/lost_update.png)
+
+This is something that we could not resolve with strict serialization, since our long conversation on the web is
+spanning multiple database transactions and a variable, possible long, period of time.
+This is the perfect case for optimistic locking with `@Version`; essentially we are placing in our basket a product with
+an associated version. If, at the moment of purchase, we the update is fired, the version of the product at the database
+is different, it means that the warehouse has somehow updated that record and we will receive an
+`OptimisticLockException`
+
+![](./images/lock/version.png)
+
+Care must be taken when performing bulk updated since we need to explicit state that we want to update the version,
+contrary to the single row update where hibernate automatically takes care of the version update.
+
+### Scaling optimistic locking
+
+Even using MVCC `@Version` can escalate in long conversations and become easily costly if multiple versions have to be
+maintained. If we have a highly concurrent environment, where multiple users are, for example, getting a post and later
+on try to update it, we will incur in the situation where only one update will be persisted, updating the version of the
+record, and consequently making all the other users transactions fail due to a `StaleObjectStateException`.
+
+One idea to improve the concurrency is to split a large table in smaller ones; a post could be divided into a post,
+post_like and post_view tables, each maintaining its own version. This allows for a better scaling of writes, both
+because we are insisting on different tables and also because these might easily have a different frequency of access.
+
+Another Hibernate-specific approach is to use the versions-less optimistic locking with :
+
+```java
+
+@Entity
+@Table
+@DynamicUpdate
+@OptimisticLocking(type = OptimisticLockType.DIRTY)
+public class Post {
+    ...
+}
+```
+
+Essentially, hibernates add a WHERE clause to the update statement for each field of the record that is modified.
+The WHERE clause is set equal to the state of the field when the record was first loaded; if the update returns a count
+of 1 it means that the specific field has not been modified by others, in other words, the specific part of the record
+we want to update has not changed since we loaded it.
+
+An example:
+
+* loading a post with id 1 and title 'jdbc'
+* changing the title to 'jpa'
+* hibernates fire and update that looks like
+
+```sql
+    UPDATE post
+    SET title 'jpa'
+    WHERE id = 1
+      and title = 'jdbc'
+  ```
+
+* if the update count is 1, the entity was found with the same title that had when loaded; hence the operation is ok
+* if the update count is 0, it means that in the meantime the entity field 'title' was changed by others, so preventing
+  a lost update
 
 ---
 
