@@ -448,6 +448,32 @@ An example:
 * if the update count is 0, it means that in the meantime the entity field 'title' was changed by others, so preventing
   a lost update
 
+### Explicit Optimistic locking modes
+
+In JPA, there are also optimistic locks that can be called explicitly but are not the default behaviour.
+
+* `LockModeType.OPTIMISTIC`: we want to check if the record we loaded is still the same by the time we are going to
+  issue an update. Essentially, when the transaction commits, hibernate is going to check if the version of the record
+  hasn't changed, if not an `OptimisticLockException` will be thrown. However, this only reduces the probability of a
+  race condition (lost update) by shortening the window in which the race condition can happen since the application
+  version check and the transaction commit are not atomic operation. One way to enforce the correct behaviour is to take
+  a `LockModeType.PESSIMISTIC_READ` before issuing the update (e.g. I select a post in lock mode optimistic, create a
+  new comment, and before committing the transaction I upgrade the lock on the post to pessimistic read, so that im sure
+  that nothing can happen to the record until my transaction is committed).
+* `LockModeType.OPTISMISTIC_FORCE_INCREMENT`: hibernates always increase the entity version and perform a version check
+  upon transaction commit, ensuring repeatable reads. This is how a subversion system works (git): every read needs to
+  take a force increment lock, the first commit increases the version of the repository, if other commits come later
+  they will be rejected (OptimisticLockException) and require a merge.
+* `LockModeType.PESSIMISTIC_FORCE_INCREMENT`: like the optimistic counterpart, but the first user that gets the lock
+  will make others wait for the row level lock to be freed
+
+At the application level, different locking strategies can be mixed to create case-specific algorithm that, for example,
+avoids conflict in an entire root of tables (post, post_comment and post_comment_detail, for example).
+For example, Hibernate allows defining custom event listener that can be appended to the existing ones and tied to
+specific operations. 
+
+**N.B. see Vlad `OptimisticLockingChildUpdatesRootVersionTest` for implementation info**
+
 ---
 
 # Connections
