@@ -17,83 +17,85 @@ the correct spring profile (it has to match the one requested in the context of 
 # Theory
 
 <!-- TOC -->
+
 * [Theory](#theory)
 * [ACID](#acid)
-  * [Atomicity](#atomicity)
-  * [Consistency](#consistency)
-    * [CAP theorem](#cap-theorem)
-  * [Durability](#durability)
-  * [Isolation (added il SQL 92)](#isolation-added-il-sql-92)
-    * [Concurrency control](#concurrency-control)
-    * [MVCC](#mvcc)
-      * [Amdahl's law](#amdahls-law)
-  * [Phenomena](#phenomena)
+    * [Atomicity](#atomicity)
+    * [Consistency](#consistency)
+        * [CAP theorem](#cap-theorem)
+    * [Durability](#durability)
+    * [Isolation (added il SQL 92)](#isolation-added-il-sql-92)
+        * [Concurrency control](#concurrency-control)
+        * [MVCC](#mvcc)
+            * [Amdahl's law](#amdahls-law)
+    * [Phenomena](#phenomena)
 * [Locks](#locks)
-  * [Pessimistic locks](#pessimistic-locks)
-    * [Hibernate-specific LockOptions](#hibernate-specific-lockoptions)
-    * [SKIP_LOCKED](#skip_locked)
-    * [Advisory lock](#advisory-lock)
-  * [Optimistic Locks](#optimistic-locks)
-    * [Preventing lost update](#preventing-lost-update)
-    * [Scaling optimistic locking](#scaling-optimistic-locking)
-    * [Explicit Optimistic locking modes](#explicit-optimistic-locking-modes)
+    * [Pessimistic locks](#pessimistic-locks)
+        * [Hibernate-specific LockOptions](#hibernate-specific-lockoptions)
+        * [SKIP_LOCKED](#skip_locked)
+        * [Advisory lock](#advisory-lock)
+    * [Optimistic Locks](#optimistic-locks)
+        * [Preventing lost update](#preventing-lost-update)
+        * [Scaling optimistic locking](#scaling-optimistic-locking)
+        * [Explicit Optimistic locking modes](#explicit-optimistic-locking-modes)
 * [Connections](#connections)
 * [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
-  * [Caching](#caching)
-  * [Entity state transitions](#entity-state-transitions)
-    * [JPA EntityManager](#jpa-entitymanager)
-    * [Hibernate Session](#hibernate-session)
-      * [JPA merge vs Hibernate update](#jpa-merge-vs-hibernate-update)
-  * [Dirty checking](#dirty-checking)
-    * [Bytecode enhancement](#bytecode-enhancement)
-  * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
-  * [Flushing](#flushing)
-    * [AUTO flushing mode](#auto-flushing-mode)
-    * [Flushing in batch processing](#flushing-in-batch-processing)
-  * [Events and event listener](#events-and-event-listener)
+    * [Caching](#caching)
+    * [Entity state transitions](#entity-state-transitions)
+        * [JPA EntityManager](#jpa-entitymanager)
+        * [Hibernate Session](#hibernate-session)
+            * [JPA merge vs Hibernate update](#jpa-merge-vs-hibernate-update)
+    * [Dirty checking](#dirty-checking)
+        * [Bytecode enhancement](#bytecode-enhancement)
+    * [Hydration -> read-by-name (Hibernate < 6.0)](#hydration---read-by-name-hibernate--60)
+    * [Flushing](#flushing)
+        * [AUTO flushing mode](#auto-flushing-mode)
+        * [Flushing in batch processing](#flushing-in-batch-processing)
+    * [Events and event listener](#events-and-event-listener)
 * [SQL Statements: lifecycle, execution plan and caching](#sql-statements-lifecycle-execution-plan-and-caching)
-  * [Execution plan cache](#execution-plan-cache)
-  * [Prepared statement](#prepared-statement)
-  * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
+    * [Execution plan cache](#execution-plan-cache)
+    * [Prepared statement](#prepared-statement)
+    * [Client-Side vs. Server-Side statement caching:](#client-side-vs-server-side-statement-caching)
 * [Fetching](#fetching)
-  * [Fetching associations](#fetching-associations)
-    * [N+1 query problem](#n1-query-problem)
-    * [Fetching multiple collections](#fetching-multiple-collections)
-  * [Open Session in View](#open-session-in-view)
+    * [Fetching associations](#fetching-associations)
+        * [N+1 query problem](#n1-query-problem)
+        * [Fetching multiple collections](#fetching-multiple-collections)
+    * [Open Session in View](#open-session-in-view)
 * [Projections](#projections)
-  * [JPA projections](#jpa-projections)
-    * [Tuple](#tuple)
-    * [DTO](#dto)
-      * [mapping native SQL queries](#mapping-native-sql-queries)
-  * [Hibernate projections](#hibernate-projections)
-  * [Bets approach for projecting parent-child relationship](#bets-approach-for-projecting-parent-child-relationship)
+    * [JPA projections](#jpa-projections)
+        * [Tuple](#tuple)
+        * [DTO](#dto)
+            * [mapping native SQL queries](#mapping-native-sql-queries)
+    * [Hibernate projections](#hibernate-projections)
+    * [Bets approach for projecting parent-child relationship](#bets-approach-for-projecting-parent-child-relationship)
 * [Batching in Hibernate](#batching-in-hibernate)
-  * [Bulking operations](#bulking-operations)
-  * [Batching in cascade](#batching-in-cascade)
-    * [DELETE cascade](#delete-cascade)
-    * [Batching on versioned entity](#batching-on-versioned-entity)
-  * [Default UPDATE behavior](#default-update-behavior)
+    * [Bulking operations](#bulking-operations)
+    * [Batching in cascade](#batching-in-cascade)
+        * [DELETE cascade](#delete-cascade)
+        * [Batching on versioned entity](#batching-on-versioned-entity)
+    * [Default UPDATE behavior](#default-update-behavior)
 * [Primary Keys and JPA identifiers](#primary-keys-and-jpa-identifiers)
-  * [JPA identifiers](#jpa-identifiers)
+    * [JPA identifiers](#jpa-identifiers)
 * [Entity Relationship](#entity-relationship)
-  * [`@ManyToOne`](#manytoone)
-    * [bidirectional](#bidirectional)
-  * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
-    * [join table](#join-table)
-      * [List vs Set Collections](#list-vs-set-collections)
-    * [`@JoinColumn`](#joincolumn)
-  * [`@OneToOne`](#onetoone)
-    * [unidirectional](#unidirectional)
-    * [bidirectional](#bidirectional-1)
-  * [`@ManyToMany`](#manytomany)
-    * [Explicit mapping](#explicit-mapping)
+    * [`@ManyToOne`](#manytoone)
+        * [bidirectional](#bidirectional)
+    * [Unidirectional `@OneToMany`](#unidirectional-onetomany)
+        * [join table](#join-table)
+            * [List vs Set Collections](#list-vs-set-collections)
+        * [`@JoinColumn`](#joincolumn)
+    * [`@OneToOne`](#onetoone)
+        * [unidirectional](#unidirectional)
+        * [bidirectional](#bidirectional-1)
+    * [`@ManyToMany`](#manytomany)
+        * [Explicit mapping](#explicit-mapping)
 * [JPA inheritance](#jpa-inheritance)
-  * [Single table inheritance](#single-table-inheritance)
-    * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
-  * [Joined inheritance](#joined-inheritance)
-  * [Table per class](#table-per-class)
-  * [`@MappedSuperclass`](#mappedsuperclass)
+    * [Single table inheritance](#single-table-inheritance)
+        * [`@DiscriminatorColumn` and `@DiscriminatorValue`](#discriminatorcolumn-and-discriminatorvalue)
+    * [Joined inheritance](#joined-inheritance)
+    * [Table per class](#table-per-class)
+    * [`@MappedSuperclass`](#mappedsuperclass)
 * [EnumType](#enumtype)
+
 <!-- TOC -->
 
 ---
@@ -444,7 +446,7 @@ An example:
     SET title 'jpa'
     WHERE id = 1
       and title = 'jdbc'
-  ```
+```
 
 * if the update count is 1, the entity was found with the same title that had when loaded; hence the operation is ok
 * if the update count is 0, it means that in the meantime the entity field 'title' was changed by others, so preventing
@@ -472,9 +474,101 @@ In JPA, there are also optimistic locks that can be called explicitly but are no
 At the application level, different locking strategies can be mixed to create case-specific algorithm that, for example,
 avoids conflict in an entire root of tables (post, post_comment and post_comment_detail, for example).
 For example, Hibernate allows defining custom event listener that can be appended to the existing ones and tied to
-specific operations. 
+specific operations.
 
 **N.B. see Vlad `OptimisticLockingChildUpdatesRootVersionTest` for implementation info**
+
+---
+
+# Database Caching
+
+## Caching layers
+
+Caching can happen in multiple layers, the discriminant is performance vs consistency. The more the cache is closer to
+the database layer, the more consistent will be since the window of synchronisation between cache and db is minimal.
+Vice versa, an application-level cache will be much faster since it will work in memory but will be much harder to
+ensure consistency.
+
+![](./images/cache/layers.png)
+
+### Database and OS cache
+
+Database cache (and OS cache) is something that we have out-of-the box, we only need to configure it properly. Databases
+are meant to leverage the OS cache or to bypass it, depending on how they are structured; most of them use an internal
+caching mechanism to speed up read and write operations. Operations on disk are inherently slow, even with ssd,
+therefore, it is mandatory for a database to use the os cache or, more often the `in-memory buffer` to store and enqueue
+pages and indexes. Changes are performed directly on the in-memory copy of a table page and only periodically
+synchronised to disk.
+
+#### Postgresql caching
+
+Postgresql has a totally different caching mechanism, compared to other database vendors like oracle and SQL server;
+While other databases try to store as much data as possible in the buffer pool, bypassing the OS cache, postgres doesn't
+use direct I/O and has to rely on the OS cache.
+It has double buffering: a `shared buffer`, limited in size, where it stores the most frequently accessed data, and on
+this the modifications are performed and later synchronized to the disk at checkpoints, and also the OS cache where
+everything else is cached.
+The shared buffer stores 8KB table and index pages, and has a size that should be dimensioned between the 15–25% of the
+available RAM (the rest of the RAM is devoted to OS cache)
+If the shared buffer uses a `LFU` (Least Frequently Used) policy to prevent a full-table scan from replacing tha
+frequently accessed pages, the OS cache uses a `LRU` (Least Recently Used) page eviction policy instead.
+
+## Application-level caching
+
+Database caching is essential and highly consistent (a modification in the database is almost immediately
+reflected into the cache). However, usually it is not enough since some execution plans are CPU or Memory intensive
+(like sorting, recursive queries, JSON processing, etc.) and the Buffer Pool is no longer sufficient. When reading,
+for example, a multi-join that generates a big resultset, it is much more convenient to store it in the
+application-level cache and be able to fetch it in O(1). Other advantages are: the database traffic is reduced,
+decreasing the change of contention on the resources and therefore avoiding possible increasing response time;
+if a significant portion of the dataset can be stored in the cache, even if in read-only mode, the application could
+still be able to run even if there is a system failure or if the db is down for maintenance, therefore increasing
+availability (stackoverflow, for example, use this approach since it has everything on premises and most of their user
+reads data and few writes).
+Nowadays, the typical application-level cache solutions (Redis, Memcached, Hazelcast, etc.) adopt a distributed
+key-value stores, where the value can be anything, from an entire object to a set of relations. Like databases, these
+solutions can still use replicas or shard to increase availability.
+
+The performance gain comes from the fact that we are bypassing the database entirely but at the price of consistency,
+meaning that it will be more difficult to synchronize the cache with the database (source of truth). Synchronization is
+essential to ensure that what we read from the cache is a faithful representation of the current db state. To do this,
+we have to be sure that every insert, update or delete is reflected in the cache; this process has several techniques
+that go under the name of cache synchronization.
+
+## Cache synchronization
+
+Cache synchronization can be approached with different techniques, which aim to guarantee, synchronously or
+asynchronously the consistency between cache and db.
+
+### Cache-aside
+
+Cache-aside is probably the most common approach; the application uses the cache as if it were the database itself, so
+it first tries to get the data hitting the cache key, if it doesn't get a value in return, we have a `cache miss` and
+therefore the application will need to ask the data directly to the database. If the element is present in the cache, we
+will have a `cache hit` and if and update/deleted is performed the operation will be first performed on the database,
+followed by the cache update on the existing key.
+
+Since most key-values stores don't rely on the same transactions on which the database works on, stale cache entries can
+be either:
+
+* `invalidated` synchronously, marking the entry as stale but with the risk of marking as stale entries even if a db
+  transaction rolls back
+* `updated asynchronously` using `CDC` (Change Data Capture) tools at the cost of having (even if minimum) a time-lag
+  between the changes at db and their propagation to the cache store.
+
+#### CDC Change Data Capture
+
+CDC is a technique that consists of recording the changes in an audit log that will serve as the source for updating the
+cache asynchronously. The audit log can have different for and be created both with triggers or directly by parsing the
+database `Redo log` which already contains the information from every commited transaction.
+
+### Read-through
+
+### Write-through
+
+### Write-invalidate
+
+### Write-behind
 
 ---
 
