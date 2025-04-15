@@ -38,6 +38,19 @@ the correct spring profile (it has to match the one requested in the context of 
         * [Preventing lost update](#preventing-lost-update)
         * [Scaling optimistic locking](#scaling-optimistic-locking)
         * [Explicit Optimistic locking modes](#explicit-optimistic-locking-modes)
+* [Database Caching](#database-caching)
+    * [Caching layers](#caching-layers)
+        * [Database and OS cache](#database-and-os-cache)
+            * [Postgresql caching](#postgresql-caching)
+    * [Application-level caching](#application-level-caching)
+    * [Cache synchronization](#cache-synchronization)
+        * [Cache-aside](#cache-aside)
+            * [CDC Change Data Capture](#cdc-change-data-capture)
+            * [Cache ripple effect](#cache-ripple-effect)
+        * [Read-through](#read-through)
+        * [Write-through](#write-through)
+        * [Write-invalidate](#write-invalidate)
+        * [Write-behind](#write-behind)
 * [Connections](#connections)
 * [Persistence Context in JPA and Hibernate](#persistence-context-in-jpa-and-hibernate)
     * [Caching](#caching)
@@ -560,15 +573,63 @@ be either:
 
 CDC is a technique that consists of recording the changes in an audit log that will serve as the source for updating the
 cache asynchronously. The audit log can have different for and be created both with triggers or directly by parsing the
-database `Redo log` which already contains the information from every commited transaction.
+database `Redo log` which already contains the information from every commited transaction. N.B. the redo log is in
+binary form, therefore, specific tools are needed to parse and interpret it). The problem with using asynchronous cache
+synchronization is that we can only get `eventual consistency` but there will be always an instant in time where the
+source of truth (the database) and the cache store are misaligned.
 
-### Read-through
+`Debezium` (from Redhat) is a common CDC solution that scans the redo log (write-ahead log `WAL` for postgres) through a
+connector and propagate the changes to the application or to a listener like a kafka topic. Then, a consumer process can
+consume the topic and operate based on the log entries for updating the cache.
 
-### Write-through
+#### Cache ripple effect
 
-### Write-invalidate
+A downside of loading an entire relationship into the cache that can comprise thousands or millions of records is that
+an update on a central entity (like a board in a social application) can impact the entire cache. At this point, we
+don't have SQL in our aid to perform bulk updates, we need instead to manually invalidate all the entries or update them
+in some way, and this can require a lot of time. A solution to mitigate this problem is to brake the cache in multiple
+aggregation so that entries are not so interconnected.
 
-### Write-behind
+## Hibernate Second-Level cache
+
+While the database cache sits very close to the data and therefore provides high consistency but slow performance, the
+application-level cache is the opposite.
+In between, we have a third option, represented by the Hibernate second-level cache. Imagine having a single primary
+node, used to handle the read-write transactions traffic, and a series of replicas that handle all the read requests.
+If the read requests increase, we can easily horizontally scale the replica layer, adding nodes; but if a higher write
+throughput is required, the only solution to maintain a single primary node (without incurring in the complexity of
+having multiple primary nodes) is to scale it vertically, providing better hardware.
+
+The second-level cache can offload the primary node read-write traffic by loading data before they actually needs to be
+modified (hence diminishing the read in the read-write transaction).
+Hibernate offers multiple second-level cache options, depending on the type of data we want to store:
+
+* entity cache
+* collection cache
+* query cache
+* natural id cache
+
+When loading an entity, Hibernate will first look into the persistence context if there is already an entity in session
+it will retrieve it with the same identifier; if not, the second-level cache will be queried and only then, if it is not
+found, it will be fetched directly from the database.
+
+![](./images/cache/2level.png)
+
+The second-level cache is enabled by default with the property `hibernate.cache.use_second_level_cache` but it won't
+operate unless a `RegionFactory` is provided. The most popular region cache is `ehcache` and can be enabled by setting
+the property `hibernate.cache.region.factory_class`.
+Entities can be annotated, specifying the concurrency strategy with
+`@Cache(usage= CacheConcurrencyStratery.READ_WRITE)`. The second-level cache usually loads the entity loaded state,
+an array from which the entity can be reconstructed.
+For `@Immutable` entities (i.e., with a concurrency strategy of READ_ONLY) we can instruct Hibernate also to directly
+store the entity reference, avoiding the penalty of reconstructing an entity from the loaded state. However, the entity
+cannot have associations (there can only be basic attributes), limiting the usage of this feature.
+
+If we are caching collections, we need to know that the second level cache only stores the identifiers of the child
+entity in a given collection. Therefore, to be sure to not incur in an N+1 query issue, it is mandatory that the child
+entities are cached as well.
+
+
 
 ---
 
